@@ -1,9 +1,9 @@
 {
-  "name": "Air 3S Flight Planner",
+  "name": "Air 3S Flight Planner V5",
   "short_name": "Air3S Planner",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#07121d",
   "theme_color": "#07121d",
-  "description": "Planner DJI Air 3S con rutas, viento, batería, O4 y alertas NOM-107."
+  "description": "Planner DJI Air 3S con rutas, viento por altitud, optimizador de altura, batería, O4 y alertas NOM-107."
 }
