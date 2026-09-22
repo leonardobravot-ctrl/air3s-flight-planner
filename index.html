@@ -94,10 +94,11 @@
           <label>Margen consumo
             <select id="safety"><option value="1">1.00× ideal DJI</option><option value="1.10">1.10×</option><option value="1.15" selected>1.15× recomendado</option><option value="1.25">1.25× muy conservador</option></select>
           </label>
-          <label>Viento a altura
+          <label>Vista viento (referencia)
             <select id="windLevel"><option value="10">10 m</option><option value="80" selected>80 m</option><option value="120">120 m</option></select>
           </label>
         </div>
+        <div class="hint">La ruta usa la altitud de cada waypoint para calcular el viento. Este selector sólo cambia la lectura de referencia que ves en pantalla.</div>
         <div class="row">
           <label>Hora de vuelo<input id="flightTime" type="datetime-local"></label>
           <label>Visibilidad km<input id="visibility" type="number" min="0" max="100" step="0.1" value="20"></label>
@@ -184,7 +185,7 @@
     <div class="stat"><div class="k">Tiempo</div><div class="v" id="timeV">—</div><div class="s">Con viento aplicado.</div></div>
     <div class="stat"><div class="k">Batería final</div><div class="v" id="batV">—</div><div class="s">Plan / ideal DJI.</div></div>
     <div class="stat"><div class="k">Máx. Home</div><div class="v" id="homeV">—</div><div class="s">Distancia máxima al control.</div></div>
-    <div class="stat"><div class="k">RTH estimado</div><div class="v" id="rthV">—</div><div class="s">Con tu reserva.</div></div>
+    <div class="stat"><div class="k">Punto R de regreso</div><div class="v" id="rthV">—</div><div class="s">Inicio de regreso heurístico para conservar reserva.</div></div>
     <div class="stat"><div class="k">Riesgo O4</div><div class="v" id="sigV">—</div><div class="s">Por distancia + entorno elegido.</div></div>
     <div class="stat"><div class="k">Margen batería</div><div class="v" id="extraV">—</div><div class="s">Sobre tu reserva configurada.</div></div>
     <div class="stat"><div class="k">Viento</div><div class="v" id="windV">—</div><div class="s">Air 3S: 12 m/s máx. publicado.</div></div>
@@ -195,7 +196,7 @@
   <div class="bottom">
     <div class="panel">
       <h3 style="margin-top:0">Waypoints</h3>
-      <div class="table"><table><thead><tr><th>WP</th><th>Alt. m</th><th>Dist. acum.</th><th>Batería</th><th>RTH necesita</th><th>O4</th><th></th></tr></thead><tbody id="tbody"><tr><td colspan="7" class="mini">Añade Home y waypoints.</td></tr></tbody></table></div>
+      <div class="table"><table><thead><tr><th>WP</th><th>Alt. m</th><th>Dist. acum.</th><th>Batería</th><th>RTH necesita</th><th>Viento</th><th>O4</th><th></th></tr></thead><tbody id="tbody"><tr><td colspan="8" class="mini">Añade Home y waypoints.</td></tr></tbody></table></div>
     </div>
     <div class="panel">
       <h3 style="margin-top:0">Qué está viendo el planner</h3>
@@ -316,7 +317,9 @@ function windAtAltitude(alt,point=null){
 function segmentAltitude(a,b){
   const aa=+a.alt||0,bb=+b.alt||0;
   if(aa>0&&bb>0)return(aa+bb)/2;
-  return Math.max(aa,bb,+$("windLevel").value||80);
+  if(aa>0)return aa;
+  if(bb>0)return bb;
+  return +$("windLevel").value||80;
 }
 function ground(track,air,alt=+$("windLevel").value||80,point=null){
   const w=windAtAltitude(alt,point),ws=w.speedKmh/3.6,from=w.dirFrom%360,to=(from+180)%360,d=rad(((to-track+540)%360)-180),par=ws*Math.cos(d),cross=ws*Math.sin(d);
@@ -387,12 +390,12 @@ function analyzeAltitude(){
   if(lim===0){state.suggestedAlt=null;$("applyAltBtn").disabled=true;$("altAdvice").textContent="El Home está dentro de 9.2 km del centro VER según este chequeo básico; no voy a recomendar una altitud de misión recreativa.";$("altGrid").innerHTML="";return}
   const candidates=[20,30,40,50,60,70,80,90,100,110,120].filter(a=>a<=lim);
   const refPoint=state.wps[Math.floor(state.wps.length/2)]||state.home;
-  const results=candidates.map(alt=>{const s=simulate(alt),w=windAtAltitude(alt,refPoint);return{alt,s,wind:w.speedKmh,dir:w.dirFrom,valid:s&&s.batt>=s.res&&w.speedKmh/3.6<=AIR3S.maxWindMs}}).filter(x=>x.s);
+  const results=candidates.map(alt=>{const s=simulate(alt),w=windAtAltitude(alt,refPoint);return{alt,s,wind:w.speedKmh,dir:w.dirFrom,maxWind:s?s.maxWind:0,valid:s&&s.batt>=s.res&&s.maxWind/3.6<=AIR3S.maxWindMs}}).filter(x=>x.s);
   const valid=results.filter(x=>x.valid),pool=valid.length?valid:results;
   const best=[...pool].sort((a,b)=>b.s.batt-a.s.batt||a.s.mins-b.s.mins)[0];
   state.suggestedAlt=best?best.alt:null;$("applyAltBtn").disabled=!best;
-  $("altGrid").innerHTML=results.map(x=>'<div class="altmini '+(best&&x.alt===best.alt?'best':'')+'"><b>'+x.alt+' m '+(best&&x.alt===best.alt?'★':'')+'</b><span>viento '+x.wind.toFixed(1)+' km/h · final '+Math.max(0,x.s.batt).toFixed(0)+'% · '+x.s.mins.toFixed(1)+' min</span></div>').join("");
-  if(best)$("altAdvice").innerHTML='<b>Sugerencia técnica: '+best.alt+' m AGL</b>. Entre las alturas comparadas deja el mayor margen de batería en este modelo: '+Math.max(0,best.s.batt).toFixed(0)+'% final, con viento modelado ~'+best.wind.toFixed(1)+' km/h. <b>No la elijo por transmisión:</b> DJI no publica una curva O4↔altura y la app no tiene un modelo 3D fiable de obstáculos. Tampoco sumo un costo exacto de subida/bajada porque DJI no publica una curva de consumo vertical.';
+  $("altGrid").innerHTML=results.map(x=>'<div class="altmini '+(best&&x.alt===best.alt?'best':'')+'"><b>'+x.alt+' m '+(best&&x.alt===best.alt?'★':'')+'</b><span>viento máx. ruta '+x.maxWind.toFixed(1)+' km/h · final '+Math.max(0,x.s.batt).toFixed(0)+'% · '+x.s.mins.toFixed(1)+' min</span></div>').join("");
+  if(best)$("altAdvice").innerHTML='<b>Sugerencia técnica: '+best.alt+' m AGL</b>. Entre las alturas comparadas deja el mayor margen de batería en este modelo: '+Math.max(0,best.s.batt).toFixed(0)+'% final, con viento máximo modelado en la ruta de ~'+best.maxWind.toFixed(1)+' km/h. <b>No la elijo por transmisión:</b> DJI no publica una curva O4↔altura y la app no tiene un modelo 3D fiable de obstáculos. Tampoco sumo un costo exacto de subida/bajada porque DJI no publica una curva de consumo vertical.';
 }
 function applySuggestedAltitude(){
   if(state.suggestedAlt==null)return;
@@ -417,7 +420,7 @@ function recalc(){
   if(windMs>AIR3S.maxWindMs){$("tech").className="crit";$("tech").textContent="Técnico: viento supera 12 m/s publicado por DJI"}
   $("explain").innerHTML=`Ruta <b>${(s.dist/1000).toFixed(2)} km</b>, máximo <b>${(s.maxH/1000).toFixed(2)} km</b> del Home. Batería de planificación <b>${Math.max(0,s.batt).toFixed(0)}%</b>; escenario ideal DJI <b>${Math.max(0,s.idealBatt).toFixed(0)}%</b>. ${s.air>13.5?"La velocidad elegida supera el punto de ensayo de distancia de DJI, por lo que el consumo se extrapola. ":""}${s.rth?`El marcador <b>R</b> aparece cerca de ${(s.rth.dist/1000).toFixed(1)} km acumulados: desde ahí el modelo estima que regresar directo al Home empieza a consumir la reserva configurada.`:"No aparece un punto R anticipado con la reserva actual."} Los colores de los tramos resumen riesgo combinado de referencia O4 + viento; no son garantía de señal ni batería.`;
 }
-function renderTable(s){const b=$("tbody");b.innerHTML="";if(!state.wps.length){b.innerHTML='<tr><td colspan="7" class="mini">Añade waypoints.</td></tr>';return}state.wps.forEach((w,i)=>{const m=s&&s.metrics[i],tr=document.createElement("tr");tr.innerHTML=`<td>WP${i+1}</td><td><input data-a="${i}" type="number" min="10" max="122" value="${w.alt}" style="width:70px"></td><td>${m?(m.dist/1000).toFixed(2)+" km":"—"}</td><td>${m?m.batt.toFixed(0)+"%":"—"}</td><td>${m?m.need.toFixed(0)+"%":"—"}</td><td>${m?{low:"Bajo",medium:"Medio",high:"Alto",critical:"Crítico"}[m.sig]:"—"}</td><td><button class="btn small" data-x="${i}">×</button></td>`;b.appendChild(tr)});b.querySelectorAll("[data-a]").forEach(x=>x.onchange=()=>{state.wps[+x.dataset.a].alt=Math.min(122,Math.max(10,+x.value||80));recalc()});b.querySelectorAll("[data-x]").forEach(x=>x.onclick=()=>{state.wps.splice(+x.dataset.x,1);recalc()})}
+function renderTable(s){const b=$("tbody");b.innerHTML="";if(!state.wps.length){b.innerHTML='<tr><td colspan="8" class="mini">Añade waypoints.</td></tr>';return}state.wps.forEach((w,i)=>{const m=s&&s.metrics[i],tr=document.createElement("tr");tr.innerHTML=`<td>WP${i+1}</td><td><input data-a="${i}" type="number" min="10" max="122" value="${w.alt}" style="width:70px"></td><td>${m?(m.dist/1000).toFixed(2)+" km":"—"}</td><td>${m?m.batt.toFixed(0)+"%":"—"}</td><td>${m?m.need.toFixed(0)+"%":"—"}</td><td>${m?m.wind.toFixed(1)+" km/h":"—"}</td><td>${m?{low:"Bajo",medium:"Medio",high:"Alto",critical:"Crítico"}[m.sig]:"—"}</td><td><button class="btn small" data-x="${i}">×</button></td>`;b.appendChild(tr)});b.querySelectorAll("[data-a]").forEach(x=>x.onchange=()=>{state.wps[+x.dataset.a].alt=Math.min(122,Math.max(10,+x.value||80));recalc()});b.querySelectorAll("[data-x]").forEach(x=>x.onclick=()=>{state.wps.splice(+x.dataset.x,1);recalc()})}
 
 
 function localDateTimeValue(d){
