@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Air 3S Planner">
 <link rel="manifest" href="./manifest.webmanifest">
-<title>Air 3S Flight Planner V5.1</title>
+<title>Air 3S Flight Planner V5.2</title>
 <style>
 :root{--bg:#07121d;--panel:#0d1e2c;--panel2:#102638;--border:#29465d;--text:#eef8ff;--muted:#9eb8ca;--blue:#48b8ff;--green:#35d77e;--yellow:#ffd34e;--orange:#ff963a;--red:#ff6268}
 *{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}button,input,select{font:inherit}
@@ -49,7 +49,7 @@
 <body>
 <div class="app">
   <div class="head">
-    <div><h1>Air 3S Flight Planner V5.1</h1><p>Planner técnico con leyenda clara, viento por altitud, optimizador de altura y límites NOM‑107.</p></div>
+    <div><h1>Air 3S Flight Planner V5.2</h1><p>Planner técnico con leyenda clara, viento por altitud, optimizador de altura y límites NOM‑107.</p></div>
     <div class="pill">El Dorado · Veracruz</div>
   </div>
 
@@ -62,7 +62,7 @@
           <button class="btn" id="wpMode">＋ Waypoint</button>
           <button class="btn" id="landMode">🛬 Landing</button>
         </div>
-        <div id="modeText" class="hint" style="margin-top:6px">Toca el mapa donde despegas.</div>
+        <div id="modeText" class="hint" style="margin-top:6px"><b>Cómo usar:</b> toca Home o Waypoint y después toca el mapa. Para mover/zoom sin crear puntos usa ✋ Navegar.</div>
         <div class="row" style="margin-top:7px"><button class="btn small" id="undo">↶ Quitar WP</button><button class="btn small" id="clear">Borrar misión</button></div>
         <div class="actions" style="margin-top:7px"><button class="btn small" id="geoHome">◎ Usar mi ubicación como Home</button></div>
         <label class="check" style="margin-top:7px"><input id="returnHome" type="checkbox" checked> Terminar regresando al Home.</label>
@@ -71,20 +71,21 @@
       <section class="sec">
         <h3>2 · Vuelo y viento</h3>
         <div class="row">
-          <label>Velocidad de crucero (aire)
-            <input id="speed" type="number" min="1" max="21" step="0.5" value="9">
+          <label>Velocidad objetivo de ruta (km/h)
+            <input id="speed" type="number" min="3.6" max="75.6" step="1" value="40">
           </label>
           <label>Reserva %
             <input id="reserve" type="number" min="10" max="40" value="25">
           </label>
         </div>
-        <div class="hint"><b>Qué significa:</b> esta es la velocidad horizontal que le pides al dron respecto al aire; <b>no</b> es un modo Cine/Normal/Sport. El viento se suma después para calcular la velocidad real sobre el suelo.</div>
+        <div class="hint"><b>Ejemplo:</b> si pones <b>40 km/h</b>, la app intenta mantener 40 km/h sobre la ruta. Con viento de frente/lado/cola calcula cuánta velocidad respecto al aire necesita el dron en cada tramo; eso cambia el consumo. Si el viento hace imposible mantener 40 km/h, baja la velocidad real y aumenta el tiempo.</div>
         <div class="actions" style="margin-top:6px">
-          <button class="btn small speedPreset" data-speed="9">9 m/s · test DJI 45 min</button>
-          <button class="btn small speedPreset" data-speed="13.5">13.5 m/s · test DJI 32 km</button>
-          <button class="btn small speedPreset" data-speed="21">21 m/s · máx. oficial sin viento</button>
+          <button class="btn small speedPreset" data-speed="20">20 km/h</button>
+          <button class="btn small speedPreset" data-speed="32.4">32.4 · test 45 min</button>
+          <button class="btn small speedPreset" data-speed="40">40 km/h</button>
+          <button class="btn small speedPreset" data-speed="48.6">48.6 · test 32 km</button>
         </div>
-        <div id="speedInfo" class="hint" style="margin-top:5px">9 m/s = 32.4 km/h · punto oficial usado por DJI para la prueba de 45 min.</div>
+        <div id="speedInfo" class="hint" style="margin-top:5px">40 km/h = 11.1 m/s de velocidad objetivo sobre el suelo.</div>
         <div class="row">
           <label>Batería al despegar %<input id="startBattery" type="number" min="20" max="100" value="100"></label>
           <label>RTH heurístico <input value="retorno + reserva + 3%" disabled></label>
@@ -167,7 +168,7 @@
           <button id="navMode" class="active">✋ Navegar</button>
           <button id="editMode">📍 Colocar puntos</button>
         </div>
-        <div class="mapmsg">Pellizca con 2 dedos para zoom · arrastra para mover · cambia a “Colocar puntos” cuando quieras añadir Home/waypoints.</div>
+        <div class="mapmsg">Pellizca con 2 dedos para zoom · arrastra para mover · Home/Waypoint activan automáticamente “Colocar puntos”.</div>
       </div>
     </div>
   </div>
@@ -189,7 +190,9 @@
 
   <div class="stats">
     <div class="stat"><div class="k">Distancia</div><div class="v" id="distV">—</div><div class="s">Ruta total.</div></div>
-    <div class="stat"><div class="k">Tiempo</div><div class="v" id="timeV">—</div><div class="s">Con viento aplicado.</div></div>
+    <div class="stat"><div class="k">Tiempo</div><div class="v" id="timeV">—</div><div class="s">Tiempo de recorrido estimado.</div></div>
+    <div class="stat"><div class="k">Velocidad objetivo</div><div class="v" id="speedV">—</div><div class="s">Sobre el suelo, a lo largo de la ruta.</div></div>
+    <div class="stat"><div class="k">Airspeed máx. requerido</div><div class="v" id="airReqV">—</div><div class="s">Velocidad respecto al aire exigida por viento.</div></div>
     <div class="stat"><div class="k">Batería final</div><div class="v" id="batV">—</div><div class="s">Plan / ideal DJI.</div></div>
     <div class="stat"><div class="k">Máx. Home</div><div class="v" id="homeV">—</div><div class="s">Distancia máxima al control.</div></div>
     <div class="stat"><div class="k">Punto R de regreso</div><div class="v" id="rthV">—</div><div class="s">Inicio de regreso heurístico para conservar reserva.</div></div>
@@ -203,12 +206,12 @@
   <div class="bottom">
     <div class="panel">
       <h3 style="margin-top:0">Waypoints</h3>
-      <div class="table"><table><thead><tr><th>WP</th><th>Alt. m</th><th>Dist. acum.</th><th>Batería</th><th>RTH necesita</th><th>Viento</th><th>O4</th><th></th></tr></thead><tbody id="tbody"><tr><td colspan="8" class="mini">Añade Home y waypoints.</td></tr></tbody></table></div>
+      <div class="table"><table><thead><tr><th>WP</th><th>Alt. m</th><th>Dist. acum.</th><th>Batería</th><th>RTH necesita</th><th>Viento</th><th>Vel. suelo</th><th>Airspeed req.</th><th>O4</th><th></th></tr></thead><tbody id="tbody"><tr><td colspan="10" class="mini">Añade Home y waypoints.</td></tr></tbody></table></div>
     </div>
     <div class="panel">
       <h3 style="margin-top:0">Qué está viendo el planner</h3>
       <div id="explain" class="note">Marca tu punto de despegue para empezar.</div>
-      <div class="footer">Datos base DJI Air 3S: 724 g; 45 min medidos a 32.4 km/h (9 m/s); 32 km medidos a 48.6 km/h (13.5 m/s); 21 m/s de velocidad horizontal máxima sin viento; hover 41 min; viento máx. 12 m/s y O4 según entorno. Open‑Meteo aporta pronóstico modelado; no es un anemómetro en la posición del dron. El RTH real usa telemetría DJI que esta app no puede conocer. El marcador R de esta app es una heurística de planificación, no el disparador real de DJI.</div>
+      <div class="footer">Datos base DJI Air 3S: 724 g; 45 min medidos por DJI a 32.4 km/h; 32 km medidos a 48.6 km/h; velocidad horizontal máx. 21 m/s (75.6 km/h) sin viento; hover 41 min; viento máx. publicado 12 m/s. El planner trata la velocidad elegida como objetivo sobre el suelo y calcula el airspeed requerido por viento. Open‑Meteo aporta pronóstico modelado; no es un anemómetro en la posición del dron. El RTH real usa telemetría DJI que esta app no puede conocer. El marcador R de esta app es una heurística de planificación, no el disparador real de DJI.</div>
     </div>
   </div>
 </div>
@@ -265,7 +268,7 @@ function renderOverlay(){
   const sim=simulate(); if(sim&&sim.rth){const s=screen(sim.rth.p),h=screen(state.home);svg.appendChild(el("line",{x1:s.x,y1:s.y,x2:h.x,y2:h.y,stroke:"#ff6268","stroke-width":"3","stroke-dasharray":"8 7"}));drawMarker(sim.rth.p,"R","#e64f59",18)}
 }
 function drawMarker(p,label,color,r){const s=screen(p),g=el("g");g.appendChild(el("circle",{cx:s.x,cy:s.y,r,fill:color,stroke:"white","stroke-width":"3"}));const t=el("text",{x:s.x,y:s.y+5,"text-anchor":"middle",fill:"white","font-size":"13","font-weight":"800"});t.textContent=label;g.appendChild(t);svg.appendChild(g)}
-function setMode(m){state.mode=m;["homeMode","wpMode","landMode"].forEach(id=>$(id).classList.remove("active"));({home:"homeMode",wp:"wpMode",land:"landMode"}[m]&&$({home:"homeMode",wp:"wpMode",land:"landMode"}[m]).classList.add("active"));$("modeText").textContent=m==="home"?"Toca el mapa donde despegas.":m==="wp"?"Toca cada punto de la ruta en orden.":"Toca el punto de aterrizaje."}
+function setMode(m){state.mode=m;["homeMode","wpMode","landMode"].forEach(id=>$(id).classList.remove("active"));({home:"homeMode",wp:"wpMode",land:"landMode"}[m]&&$({home:"homeMode",wp:"wpMode",land:"landMode"}[m]).classList.add("active"));$("modeText").textContent=m==="home"?"📍 HOME activo: toca el mapa donde despegas.":m==="wp"?"📍 WAYPOINT activo: cada toque añade un punto. Usa ✋ Navegar para mover el mapa sin añadir.":"📍 LANDING activo: toca el punto de aterrizaje."}
 
 function setInteraction(mode){
   state.interaction=mode;
@@ -294,7 +297,7 @@ function pointerMid(a,b){
   return {x:(a.x+b.x)/2,y:(a.y+b.y)/2};
 }
 
-function addPoint(g){if(state.mode==="home"){state.home={...g,alt:0};setMode("wp")}else if(state.mode==="wp"){if(!state.home){setMode("home");return}state.wps.push({...g,alt:80})}else {state.landing={...g,alt:0};setInteraction("nav")}recalc()}
+function addPoint(g){if(state.mode==="home"){state.home={...g,alt:0};setMode("wp");setInteraction("edit")}else if(state.mode==="wp"){if(!state.home){setMode("home");return}state.wps.push({...g,alt:80})}else {state.landing={...g,alt:0};setInteraction("nav")}recalc()}
 function interp(a,b,t){return a+(b-a)*t}
 function windComponents(speedKmh,dirFromDeg){
   const speed=speedKmh/3.6,to=rad((dirFromDeg+180)%360);
@@ -328,31 +331,34 @@ function segmentAltitude(a,b){
   if(bb>0)return bb;
   return +$("windLevel").value||80;
 }
-function ground(track,air,alt=+$("windLevel").value||80,point=null){
-  const w=windAtAltitude(alt,point),ws=w.speedKmh/3.6,from=w.dirFrom%360,to=(from+180)%360,d=rad(((to-track+540)%360)-180),par=ws*Math.cos(d),cross=ws*Math.sin(d);
-  if(Math.abs(cross)>=air)return{ok:false,g:.1,wind:w,alt};
-  return{ok:true,g:Math.max(.1,par+Math.sqrt(Math.max(0,air*air-cross*cross))),wind:w,alt};
-}
-function plannedAirspeed(){
-  const raw=plannedAirspeed();
-  const v=Math.max(1,Math.min(AIR3S.maxSpeedMs,raw));
-  if(v!==raw)$("speed").value=v;
-  return v;
+function routeSpeedMs(){
+  const raw=+$("speed").value||40;
+  const kmh=Math.max(3.6,Math.min(AIR3S.maxSpeedMs*3.6,raw));
+  if(Math.abs(kmh-raw)>.001)$("speed").value=kmh.toFixed(1);
+  return kmh/3.6;
 }
 function updateSpeedInfo(){
-  const v=plannedAirspeed(),kmh=v*3.6;
-  let msg=v===9
-    ?"9 m/s = 32.4 km/h · punto oficial usado por DJI para medir hasta 45 min de vuelo."
-    :v===13.5
-      ?"13.5 m/s = 48.6 km/h · punto oficial usado por DJI para medir hasta 32 km de distancia de vuelo."
-      :v===21
-        ?"21 m/s = 75.6 km/h · velocidad horizontal máxima oficial sin viento. DJI no publica una autonomía a esta velocidad, así que el consumo se extrapola."
-        :v<9
-          ?v.toFixed(1)+" m/s = "+kmh.toFixed(1)+" km/h · consumo interpolado entre hover y el punto DJI de 9 m/s."
-          :v<13.5
-            ?v.toFixed(1)+" m/s = "+kmh.toFixed(1)+" km/h · consumo interpolado entre los dos puntos de ensayo publicados por DJI."
-            :v.toFixed(1)+" m/s = "+kmh.toFixed(1)+" km/h · por encima de 13.5 m/s DJI no publica una curva de autonomía; el consumo es extrapolado.";
-  $("speedInfo").textContent=msg;
+  const kmh=routeSpeedMs()*3.6,ms=kmh/3.6;
+  let anchor="";
+  if(Math.abs(kmh-32.4)<.15)anchor=" · coincide con la velocidad del ensayo DJI de 45 min.";
+  else if(Math.abs(kmh-48.6)<.15)anchor=" · coincide con la velocidad del ensayo DJI de 32 km.";
+  else if(kmh>48.6)anchor=" · el consumo por encima de 48.6 km/h se extrapola porque DJI no publica otra curva de autonomía.";
+  else anchor=" · el consumo se interpola con los puntos de ensayo públicos de DJI.";
+  $("speedInfo").textContent=kmh.toFixed(1)+" km/h = "+ms.toFixed(2)+" m/s de velocidad objetivo sobre la ruta"+anchor;
+}
+function segmentKinematics(track,targetGround,alt,point=null){
+  const w=windAtAltitude(alt,point),ws=w.speedKmh/3.6,from=w.dirFrom%360,to=(from+180)%360,d=rad(((to-track+540)%360)-180);
+  const par=ws*Math.cos(d),cross=ws*Math.sin(d);
+  const alongAir=targetGround-par;
+  const requiredAir=Math.hypot(alongAir,cross);
+  const maxAir=AIR3S.maxSpeedMs;
+  if(Math.abs(cross)>=maxAir){
+    return{ok:false,canHold:false,g:.1,air:maxAir,requiredAir,w,alt,par,cross};
+  }
+  const maxAlong=Math.sqrt(Math.max(0,maxAir*maxAir-cross*cross));
+  const maxGround=Math.max(.1,par+maxAlong);
+  const canHold=requiredAir<=maxAir;
+  return{ok:true,canHold,g:canHold?targetGround:maxGround,air:canHold?requiredAir:maxAir,requiredAir,w,alt,par,cross,maxGround};
 }
 function idealDrain(v){
   const hover=100/AIR3S.maxHoverMin;        // official hover anchor
@@ -368,42 +374,40 @@ function drain(v){return idealDrain(v)*(+$("safety").value||1.15)}
 function sigRisk(p){if(!state.home)return"low";const d=hav(state.home,p)/1000,pf=rf[$("rf").value];return d>pf.max?"critical":d>pf.low?"high":d>pf.low*.65?"medium":"low"}
 function rank(x){return{low:0,medium:1,high:2,critical:3}[x]}
 function segmentRisk(a,b){
-  let r="low";
-  [a,b,{lat:(a.lat+b.lat)/2,lng:(a.lng+b.lng)/2}].forEach(p=>{const x=sigRisk(p);if(rank(x)>rank(r))r=x});
-  const mid={lat:(a.lat+b.lat)/2,lng:(a.lng+b.lng)/2},alt=segmentAltitude(a,b),g=ground(bearing(a,b),plannedAirspeed(),alt,mid),windMs=g.wind.speedKmh/3.6;
-  if(!g.ok||windMs>AIR3S.maxWindMs)r="critical";
-  else if(windMs>AIR3S.maxWindMs*.8&&rank(r)<2)r="high";
-  else if(windMs>AIR3S.maxWindMs*.6&&rank(r)<1)r="medium";
+  let r="low";const mid={lat:(a.lat+b.lat)/2,lng:(a.lng+b.lng)/2};
+  [a,b,mid].forEach(p=>{const x=sigRisk(p);if(rank(x)>rank(r))r=x});
+  const alt=segmentAltitude(a,b),k=segmentKinematics(bearing(a,b),routeSpeedMs(),alt,mid),windMs=k.w.speedKmh/3.6;
+  if(!k.ok||!k.canHold||windMs>AIR3S.maxWindMs)r="critical";
+  else if(k.air>AIR3S.maxSpeedMs*.85&&rank(r)<2)r="high";
+  else if(k.air>AIR3S.maxSpeedMs*.70&&rank(r)<1)r="medium";
   return r
 }
-function estimateRTH(p,air,reserve,alt=+$("rthAlt").value||90){
+function estimateRTH(p,targetGround,reserve,alt=+$("rthAlt").value||90){
   if(!state.home)return 100;
-  const d=hav(p,state.home),g=ground(bearing(p,state.home),air,alt,p);
-  if(!g.ok)return 100;
-  const mins=d/g.g/60+1.4;
-  return mins*drain(air)+reserve+3
+  const d=hav(p,state.home),k=segmentKinematics(bearing(p,state.home),targetGround,alt,p);
+  if(!k.ok)return 100;
+  const mins=d/Math.max(.1,k.g)/60;
+  return mins*drain(k.air)+reserve+3
 }
 function simulate(overrideAlt=null){
   if(!state.home||!state.wps.length)return null;
   const pts=[state.home,...state.wps.map(p=>overrideAlt==null?p:{...p,alt:overrideAlt})];
   if($("returnHome").checked)pts.push(state.home);else if(state.landing)pts.push(state.landing);else return null;
-  const air=plannedAirspeed(),res=+$("reserve").value||25,start=Math.max(20,Math.min(100,+$("startBattery").value||100));
-  let batt=start,idealBatt=start,mins=1.0,dist=0,maxH=0,worst="low",rth=null,metrics=[],cum=0,maxWind=0;
+  const targetGround=routeSpeedMs(),res=+$("reserve").value||25,start=Math.max(20,Math.min(100,+$("startBattery").value||100));
+  let batt=start,idealBatt=start,mins=0,dist=0,maxH=0,worst="low",rth=null,metrics=[],cum=0,maxWind=0,maxAirReq=0,speedLimited=false,minGround=Infinity;
   for(let i=0;i<pts.length-1;i++){
-    const a=pts[i],b=pts[i+1],d=hav(a,b),mid={lat:(a.lat+b.lat)/2,lng:(a.lng+b.lng)/2},alt=overrideAlt==null?segmentAltitude(a,b):overrideAlt,g=ground(bearing(a,b),air,alt,mid),segM=d/Math.max(.1,g.g)/60,segB=segM*drain(air),segIdeal=segM*idealDrain(air),steps=Math.max(1,Math.ceil(d/100));
-    maxWind=Math.max(maxWind,g.wind.speedKmh);
+    const a=pts[i],b=pts[i+1],d=hav(a,b),mid={lat:(a.lat+b.lat)/2,lng:(a.lng+b.lng)/2},alt=overrideAlt==null?segmentAltitude(a,b):overrideAlt,k=segmentKinematics(bearing(a,b),targetGround,alt,mid),segM=d/Math.max(.1,k.g)/60,segB=segM*drain(k.air),segIdeal=segM*idealDrain(k.air),steps=Math.max(1,Math.ceil(d/100));
+    maxWind=Math.max(maxWind,k.w.speedKmh);maxAirReq=Math.max(maxAirReq,k.requiredAir);minGround=Math.min(minGround,k.g);if(!k.canHold)speedLimited=true;
     for(let s=1;s<=steps;s++){
       const t=s/steps,p={lat:a.lat+(b.lat-a.lat)*t,lng:a.lng+(b.lng-a.lng)*t,alt};
       cum+=d/steps;mins+=segM/steps;batt-=segB/steps;idealBatt-=segIdeal/steps;maxH=Math.max(maxH,hav(state.home,p));
       const sr=sigRisk(p);if(rank(sr)>rank(worst))worst=sr;
-      const need=estimateRTH(p,air,res,Math.max(alt,+$("rthAlt").value||90));
-      if(!rth&&batt<=need)rth={p,dist:cum,batt,need}
+      const need=estimateRTH(p,targetGround,res,Math.max(alt,+$("rthAlt").value||90));if(!rth&&batt<=need)rth={p,dist:cum,batt,need}
     }
     dist+=d;
-    if(i<state.wps.length)metrics.push({dist,batt,need:estimateRTH(b,air,res,Math.max(alt,+$("rthAlt").value||90)),sig:sigRisk(b),alt,wind:g.wind.speedKmh});
+    if(i<state.wps.length)metrics.push({dist,batt,need:estimateRTH(b,targetGround,res,Math.max(alt,+$("rthAlt").value||90)),sig:sigRisk(b),alt,wind:k.w.speedKmh,ground:k.g*3.6,airReq:k.requiredAir*3.6,canHold:k.canHold});
   }
-  batt-=1.5;idealBatt-=1;mins+=.4;
-  return{dist,mins,batt,idealBatt,maxH,worst,rth,metrics,air,res,maxWind,overrideAlt};
+  return{dist,mins,batt,idealBatt,maxH,worst,rth,metrics,targetGround,res,maxWind,maxAirReq,speedLimited,minGround};
 }
 function legalAltitudeLimit(){
   if(!state.home)return 122;
@@ -418,7 +422,7 @@ function analyzeAltitude(){
   if(lim===0){state.suggestedAlt=null;$("applyAltBtn").disabled=true;$("altAdvice").textContent="El Home está dentro de 9.2 km del centro VER según este chequeo básico; no voy a recomendar una altitud de misión recreativa.";$("altGrid").innerHTML="";return}
   const candidates=[20,30,40,50,60,70,80,90,100,110,120].filter(a=>a<=lim);
   const refPoint=state.wps[Math.floor(state.wps.length/2)]||state.home;
-  const results=candidates.map(alt=>{const s=simulate(alt),w=windAtAltitude(alt,refPoint);return{alt,s,wind:w.speedKmh,dir:w.dirFrom,maxWind:s?s.maxWind:0,valid:s&&s.batt>=s.res&&s.maxWind/3.6<=AIR3S.maxWindMs}}).filter(x=>x.s);
+  const results=candidates.map(alt=>{const s=simulate(alt),w=windAtAltitude(alt,refPoint);return{alt,s,wind:w.speedKmh,dir:w.dirFrom,maxWind:s?s.maxWind:0,maxAir:s?s.maxAirReq*3.6:0,valid:s&&s.batt>=s.res&&!s.speedLimited&&s.maxWind/3.6<=AIR3S.maxWindMs}}).filter(x=>x.s);
   const valid=results.filter(x=>x.valid),pool=valid.length?valid:results;
   const best=[...pool].sort((a,b)=>b.s.batt-a.s.batt||a.s.mins-b.s.mins)[0];
   state.suggestedAlt=best?best.alt:null;$("applyAltBtn").disabled=!best;
@@ -434,11 +438,11 @@ function applySuggestedAltitude(){
 }
 
 function recalc(){
-  updateSpeedInfo();renderOverlay();const s=simulate();const activeWind=windAtAltitude(+$("windLevel").value||80,state.home);$("windV").textContent=`${activeWind.speedKmh.toFixed(1)}/${+$("gust").value||0} km/h`;renderTable(s);
-  if(!s){["distV","timeV","batV","homeV","rthV","sigV","extraV"].forEach(id=>$(id).textContent="—");$("tech").className="warn";$("tech").textContent="Técnico: esperando ruta";$("legal").className="warn";$("legal").textContent="NOM: esperando ruta";$("explain").textContent="Marca Home y al menos un waypoint.";return}
+  updateSpeedInfo();renderOverlay();const s=simulate();const activeWind=windAtAltitude(+$("windLevel").value||80,state.home);$("windV").textContent=`${activeWind.speedKmh.toFixed(1)}/${+$("gust").value||0} km/h`;$("speedV").textContent=(routeSpeedMs()*3.6).toFixed(1)+" km/h";$("airReqV").textContent=s?(s.maxAirReq*3.6).toFixed(1)+" km/h":"—";renderTable(s);
+  if(!s){["distV","timeV","batV","homeV","rthV","sigV","extraV","airReqV"].forEach(id=>$(id).textContent="—");$("tech").className="warn";$("tech").textContent="Técnico: esperando ruta";$("legal").className="warn";$("legal").textContent="NOM: esperando ruta";$("explain").textContent="Marca Home y al menos un waypoint.";return}
   $("distV").textContent=(s.dist/1000).toFixed(2)+" km";$("timeV").textContent=s.mins.toFixed(1)+" min";$("batV").textContent=Math.max(0,s.batt).toFixed(0)+"% / "+Math.max(0,s.idealBatt).toFixed(0)+"%";$("homeV").textContent=(s.maxH/1000).toFixed(2)+" km";$("rthV").textContent=s.rth?(s.rth.dist/1000).toFixed(1)+" km":"No antes del fin";$("sigV").textContent={low:"Bajo",medium:"Medio",high:"Alto",critical:"Crítico"}[s.worst];
   $("extraV").textContent=(s.batt-s.res).toFixed(0)+"%";
-  let tc="good",tt="Técnico: margen cómodo";if(s.batt<0||s.worst==="critical"){tc="crit";tt="Técnico: no viable"}else if(s.rth||s.batt<s.res+5||s.worst==="high"){tc="bad";tt="Técnico: alto riesgo"}else if(s.batt<s.res+15||s.worst==="medium"){tc="warn";tt="Técnico: margen limitado"}$("tech").className=tc;$("tech").textContent=tt;
+  let tc="good",tt="Técnico: margen cómodo";if(s.speedLimited){tc="crit";tt="Técnico: no puede mantener la velocidad objetivo en algún tramo"}else if(s.batt<0||s.worst==="critical"){tc="crit";tt="Técnico: no viable"}else if(s.rth||s.batt<s.res+5||s.worst==="high"){tc="bad";tt="Técnico: alto riesgo"}else if(s.batt<s.res+15||s.worst==="medium"){tc="warn";tt="Técnico: margen limitado"}$("tech").className=tc;$("tech").textContent=tt;
   const maxAlt=Math.max(...state.wps.map(w=>w.alt),+$("rthAlt").value||0);
   const dVer=hav(state.home,VER)/1000,lim=(dVer>=9.2&&dVer<=18.5)?100:122;
   const badD=$("nom").checked&&s.maxH>457,badA=maxAlt>lim,insideVer=dVer<9.2;
@@ -446,9 +450,9 @@ function recalc(){
   $("legal").className=(badD||badA||insideVer||vis<1.5)?"crit":"good";
   $("legal").textContent=(badD||badA||insideVer||vis<1.5)?`NOM: alerta${insideVer?" · Home <9.2 km VER":""}${badD?" · >457 m":""}${badA?" · >"+lim+" m AGL":""}${vis<1.5?" · vis <1.5 km":""}`:`NOM: sin alerta básica · VER ${dVer.toFixed(1)} km`;
   if(windMs>AIR3S.maxWindMs){$("tech").className="crit";$("tech").textContent="Técnico: viento supera 12 m/s publicado por DJI"}
-  $("explain").innerHTML=`Ruta <b>${(s.dist/1000).toFixed(2)} km</b>, máximo <b>${(s.maxH/1000).toFixed(2)} km</b> del Home. Batería de planificación <b>${Math.max(0,s.batt).toFixed(0)}%</b>; escenario ideal DJI <b>${Math.max(0,s.idealBatt).toFixed(0)}%</b>. ${s.air>13.5?"La velocidad elegida supera 13.5 m/s, el punto más rápido de autonomía/distancia publicado por DJI; por eso el consumo por encima de ahí se extrapola. ":""}${s.rth?`El marcador <b>R</b> aparece cerca de ${(s.rth.dist/1000).toFixed(1)} km acumulados: desde ahí el modelo estima que regresar directo al Home empieza a consumir la reserva configurada.`:"No aparece un punto R anticipado con la reserva actual."} Los colores de los tramos resumen riesgo combinado de referencia O4 + viento; no son garantía de señal ni batería.`;
+  $("explain").innerHTML=`Ruta <b>${(s.dist/1000).toFixed(2)} km</b>, máximo <b>${(s.maxH/1000).toFixed(2)} km</b> del Home. Batería de planificación <b>${Math.max(0,s.batt).toFixed(0)}%</b>; escenario ideal DJI <b>${Math.max(0,s.idealBatt).toFixed(0)}%</b>. ${s.maxAirReq>13.5?"En algún tramo el viento exige más de 48.6 km/h respecto al aire; el consumo de esa parte se extrapola porque DJI no publica otra curva de autonomía. ":""}${s.speedLimited?"<b>No se puede mantener la velocidad objetivo en todos los tramos con el límite físico de 75.6 km/h sin viento.</b> ":""}${s.rth?`El marcador <b>R</b> aparece cerca de ${(s.rth.dist/1000).toFixed(1)} km acumulados: desde ahí el modelo estima que regresar directo al Home empieza a consumir la reserva configurada.`:"No aparece un punto R anticipado con la reserva actual."} Los colores de los tramos resumen riesgo combinado de referencia O4 + viento; no son garantía de señal ni batería.`;
 }
-function renderTable(s){const b=$("tbody");b.innerHTML="";if(!state.wps.length){b.innerHTML='<tr><td colspan="8" class="mini">Añade waypoints.</td></tr>';return}state.wps.forEach((w,i)=>{const m=s&&s.metrics[i],tr=document.createElement("tr");tr.innerHTML=`<td>WP${i+1}</td><td><input data-a="${i}" type="number" min="10" max="122" value="${w.alt}" style="width:70px"></td><td>${m?(m.dist/1000).toFixed(2)+" km":"—"}</td><td>${m?m.batt.toFixed(0)+"%":"—"}</td><td>${m?m.need.toFixed(0)+"%":"—"}</td><td>${m?m.wind.toFixed(1)+" km/h":"—"}</td><td>${m?{low:"Bajo",medium:"Medio",high:"Alto",critical:"Crítico"}[m.sig]:"—"}</td><td><button class="btn small" data-x="${i}">×</button></td>`;b.appendChild(tr)});b.querySelectorAll("[data-a]").forEach(x=>x.onchange=()=>{state.wps[+x.dataset.a].alt=Math.min(122,Math.max(10,+x.value||80));recalc()});b.querySelectorAll("[data-x]").forEach(x=>x.onclick=()=>{state.wps.splice(+x.dataset.x,1);recalc()})}
+function renderTable(s){const b=$("tbody");b.innerHTML="";if(!state.wps.length){b.innerHTML='<tr><td colspan="10" class="mini">Añade waypoints.</td></tr>';return}state.wps.forEach((w,i)=>{const m=s&&s.metrics[i],tr=document.createElement("tr");tr.innerHTML=`<td>WP${i+1}</td><td><input data-a="${i}" type="number" min="10" max="122" value="${w.alt}" style="width:70px"></td><td>${m?(m.dist/1000).toFixed(2)+" km":"—"}</td><td>${m?m.batt.toFixed(0)+"%":"—"}</td><td>${m?m.need.toFixed(0)+"%":"—"}</td><td>${m?m.wind.toFixed(1)+" km/h":"—"}</td><td>${m?m.ground.toFixed(1)+" km/h":"—"}</td><td>${m?m.airReq.toFixed(1)+" km/h":"—"}</td><td>${m?{low:"Bajo",medium:"Medio",high:"Alto",critical:"Crítico"}[m.sig]:"—"}</td><td><button class="btn small" data-x="${i}">×</button></td>`;b.appendChild(tr)});b.querySelectorAll("[data-a]").forEach(x=>x.onchange=()=>{state.wps[+x.dataset.a].alt=Math.min(122,Math.max(10,+x.value||80));recalc()});b.querySelectorAll("[data-x]").forEach(x=>x.onclick=()=>{state.wps.splice(+x.dataset.x,1);recalc()})}
 
 
 function localDateTimeValue(d){
@@ -490,9 +494,9 @@ async function loadWeather(){
     state.weatherProfile=null;$("weatherInfo").textContent="No se pudo cargar el pronóstico. Mantén valores manuales y vuelve a intentar.";$("weatherSource").textContent="● Fuente: valores manuales";
   }
 }
-function planData(){return{version:5,home:state.home,wps:state.wps,landing:state.landing,weatherProfile:state.weatherProfile,settings:{returnHome:$("returnHome").checked,speed:+$("speed").value,reserve:+$("reserve").value,startBattery:+$("startBattery").value,wind:+$("wind").value,gust:+$("gust").value,windDir:+$("windDir").value,rthAlt:+$("rthAlt").value,rf:$("rf").value,safety:+$("safety").value,windLevel:+$("windLevel").value,visibility:+$("visibility").value,flightTime:$("flightTime").value}}}
+function planData(){return{version:5.2,home:state.home,wps:state.wps,landing:state.landing,weatherProfile:state.weatherProfile,settings:{returnHome:$("returnHome").checked,speed:+$("speed").value,reserve:+$("reserve").value,startBattery:+$("startBattery").value,wind:+$("wind").value,gust:+$("gust").value,windDir:+$("windDir").value,rthAlt:+$("rthAlt").value,rf:$("rf").value,safety:+$("safety").value,windLevel:+$("windLevel").value,visibility:+$("visibility").value,flightTime:$("flightTime").value}}}
 function restorePlan(d){
-  if(!d)return; state.home=d.home||null;state.wps=d.wps||[];state.landing=d.landing||null;state.weatherProfile=d.weatherProfile||null;const q=d.settings||{};
+  if(!d)return; state.home=d.home||null;state.wps=d.wps||[];state.landing=d.landing||null;state.weatherProfile=d.weatherProfile||null;const q={...(d.settings||{})};if((!d.version||d.version<5.2)&&q.speed!=null&&q.speed<=21)q.speed=q.speed*3.6;
   Object.keys(q).forEach(k=>{if($(k)){if($(k).type==="checkbox")$(k).checked=!!q[k];else $(k).value=q[k]}});
   recalc();
 }
@@ -575,7 +579,7 @@ $("streetBtn").onclick=(e)=>{e.stopPropagation();state.layer="street";$("streetB
 $("navMode").onclick=(e)=>{e.stopPropagation();setInteraction("nav")};
 $("editMode").onclick=(e)=>{e.stopPropagation();setInteraction("edit")};
 $("homeMode").onclick=()=>{setMode("home");setInteraction("edit")};$("wpMode").onclick=()=>{setMode("wp");setInteraction("edit")};$("landMode").onclick=()=>{setMode("land");setInteraction("edit")};$("undo").onclick=()=>{state.wps.pop();recalc()};$("clear").onclick=()=>{state.home=null;state.wps=[];state.landing=null;setMode("home");recalc()};
-["returnHome","speed","reserve","startBattery","wind","gust","windDir","rthAlt","rf","nom","ring","safety","visibility"].forEach(id=>$(id).addEventListener("change",recalc));$("windLevel").addEventListener("change",()=>{if(state.weatherProfile){const w=windAtAltitude(+$("windLevel").value,state.home);$("wind").value=w.speedKmh.toFixed(1);$("windDir").value=Math.round(w.dirFrom)}recalc()});document.querySelectorAll(".preset").forEach(b=>b.onclick=()=>{$("wind").value=b.dataset.w;$("gust").value=b.dataset.g;$("windDir").value=b.dataset.d;recalc()});document.querySelectorAll(".speedPreset").forEach(b=>b.onclick=()=>{$("speed").value=b.dataset.speed;recalc()});$("geoHome").onclick=()=>{if(!navigator.geolocation){alert("Este navegador no ofrece ubicación.");return}navigator.geolocation.getCurrentPosition(pos=>{state.home={lat:pos.coords.latitude,lng:pos.coords.longitude,alt:0};state.center={lat:state.home.lat,lng:state.home.lng};state.zoom=16;setMode("wp");setInteraction("nav");renderTiles();recalc()},()=>alert("Safari no dio permiso de ubicación."),{enableHighAccuracy:true,timeout:10000,maximumAge:30000})};$("weatherBtn").onclick=loadWeather;$("nowBtn").onclick=()=>{$("flightTime").value=localDateTimeValue(new Date());loadWeather()};$("optAltBtn").onclick=analyzeAltitude;$("applyAltBtn").onclick=applySuggestedAltitude;$("saveLocal").onclick=()=>{localStorage.setItem("air3s-plan-v5",JSON.stringify(planData()));$("weatherInfo").textContent="Plan guardado en este dispositivo."};$("restoreLocal").onclick=()=>{const x=localStorage.getItem("air3s-plan-v5");if(x)restorePlan(JSON.parse(x));else alert("No hay plan guardado.");};
+["returnHome","speed","reserve","startBattery","wind","gust","windDir","rthAlt","rf","nom","ring","safety","visibility"].forEach(id=>{ $(id).addEventListener("change",recalc); if(["speed","reserve","startBattery","wind","gust","windDir"].includes(id))$(id).addEventListener("input",recalc); });$("windLevel").addEventListener("change",()=>{if(state.weatherProfile){const w=windAtAltitude(+$("windLevel").value,state.home);$("wind").value=w.speedKmh.toFixed(1);$("windDir").value=Math.round(w.dirFrom)}recalc()});document.querySelectorAll(".preset").forEach(b=>b.onclick=()=>{$("wind").value=b.dataset.w;$("gust").value=b.dataset.g;$("windDir").value=b.dataset.d;recalc()});document.querySelectorAll(".speedPreset").forEach(b=>b.onclick=()=>{$("speed").value=b.dataset.speed;recalc()});$("geoHome").onclick=()=>{if(!navigator.geolocation){alert("Este navegador no ofrece ubicación.");return}navigator.geolocation.getCurrentPosition(pos=>{state.home={lat:pos.coords.latitude,lng:pos.coords.longitude,alt:0};state.center={lat:state.home.lat,lng:state.home.lng};state.zoom=16;setMode("wp");setInteraction("edit");renderTiles();recalc()},()=>alert("Safari no dio permiso de ubicación."),{enableHighAccuracy:true,timeout:10000,maximumAge:30000})};$("weatherBtn").onclick=loadWeather;$("nowBtn").onclick=()=>{$("flightTime").value=localDateTimeValue(new Date());loadWeather()};$("optAltBtn").onclick=analyzeAltitude;$("applyAltBtn").onclick=applySuggestedAltitude;$("saveLocal").onclick=()=>{localStorage.setItem("air3s-plan-v5-2",JSON.stringify(planData()));$("weatherInfo").textContent="Plan guardado en este dispositivo."};$("restoreLocal").onclick=()=>{const x=localStorage.getItem("air3s-plan-v5-2");if(x)restorePlan(JSON.parse(x));else alert("No hay plan guardado.");};
 function dl(name,text,type){const a=document.createElement("a"),blob=new Blob([text],{type});a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),500)}
 $("export").onclick=()=>dl("air3s-plan.json",JSON.stringify(planData(),null,2),"application/json");
 $("importJson").onchange=e=>{const f=e.target.files&&e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{try{restorePlan(JSON.parse(rd.result));$("weatherInfo").textContent="Plan importado correctamente."}catch(_){alert("Ese archivo JSON no es un plan válido.")}};rd.readAsText(f);e.target.value=""};
