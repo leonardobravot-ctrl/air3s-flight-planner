@@ -43,6 +43,7 @@
         </div>
         <div id="modeText" class="hint" style="margin-top:6px">Toca el mapa donde despegas.</div>
         <div class="row" style="margin-top:7px"><button class="btn small" id="undo">↶ Quitar WP</button><button class="btn small" id="clear">Borrar misión</button></div>
+        <div class="actions" style="margin-top:7px"><button class="btn small" id="geoHome">◎ Usar mi ubicación como Home</button></div>
         <label class="check" style="margin-top:7px"><input id="returnHome" type="checkbox" checked> Terminar regresando al Home.</label>
       </section>
 
@@ -55,6 +56,10 @@
           <label>Reserva %
             <input id="reserve" type="number" min="10" max="40" value="25">
           </label>
+        </div>
+        <div class="row">
+          <label>Batería al despegar %<input id="startBattery" type="number" min="20" max="100" value="100"></label>
+          <label>RTH heurístico <input value="retorno + reserva + 3%" disabled></label>
         </div>
         <div class="row">
           <label>Viento km/h<input id="wind" type="number" min="0" max="70" value="15"></label>
@@ -81,7 +86,7 @@
           <button class="btn small" id="saveLocal">Guardar plan</button>
           <button class="btn small" id="restoreLocal">Restaurar</button>
         </div>
-        <div id="weatherInfo" class="hint" style="margin-top:6px">Clima manual. Open‑Meteo puede cargar viento a 10/80/120 m para la hora del vuelo.</div>
+        <div id="weatherInfo" class="hint" style="margin-top:6px">Clima manual. Open‑Meteo carga el pronóstico del centro aproximado de la ruta a 10/80/120 m para la hora elegida.</div>
         <div class="actions" style="margin-top:7px">
           <button class="btn small preset" data-w="0" data-g="0" data-d="0">Calma</button>
           <button class="btn small preset" data-w="15" data-g="22" data-d="0">Norte 15</button>
@@ -107,7 +112,7 @@
 
       <section class="sec">
         <h3>Guardar / exportar</h3>
-        <div class="actions"><button class="btn small" id="export">Exportar JSON</button><button class="btn small" id="kml">Exportar KML</button></div>
+        <div class="actions"><button class="btn small" id="export">Exportar JSON</button><button class="btn small" id="kml">Exportar KML</button><label class="btn small" style="display:inline-flex;align-items:center">Importar JSON<input id="importJson" type="file" accept="application/json,.json" style="display:none"></label></div>
       </section>
     </div>
 
@@ -148,7 +153,7 @@
     <div class="panel">
       <h3 style="margin-top:0">Qué está viendo el planner</h3>
       <div id="explain" class="note">Marca tu punto de despegue para empezar.</div>
-      <div class="footer">Datos base DJI Air 3S: 724 g, 45 min a 32.4 km/h, 32 km a 48.6 km/h, hover 41 min, viento máx. 12 m/s y O4 según entorno. El RTH real del dron usa telemetría que esta app no puede conocer.</div>
+      <div class="footer">Datos base DJI Air 3S: 724 g, 45 min a 32.4 km/h, 32 km a 48.6 km/h, hover 41 min, viento máx. 12 m/s y O4 según entorno. El RTH real del dron usa telemetría que esta app no puede conocer. El marcador R de esta app es una heurística de planificación, no el disparador real de DJI.</div>
     </div>
   </div>
 </div>
@@ -253,7 +258,7 @@ function segmentRisk(a,b){let r="low";[a,b,{lat:(a.lat+b.lat)/2,lng:(a.lng+b.lng
 function estimateRTH(p,air,reserve){if(!state.home)return 100;const d=hav(p,state.home),g=ground(bearing(p,state.home),air);if(!g.ok)return 100;const mins=d/g.g/60+1.4;return mins*drain(air)+reserve+3}
 function simulate(){
   if(!state.home||!state.wps.length)return null;const pts=[state.home,...state.wps];if($("returnHome").checked)pts.push(state.home);else if(state.landing)pts.push(state.landing);else return null;
-  const air=+$("speed").value||9,res=+$("reserve").value||25;let batt=97,idealBatt=97,mins=1.0,dist=0,maxH=0,worst="low",rth=null,metrics=[],cum=0;
+  const air=+$("speed").value||9,res=+$("reserve").value||25,start=Math.max(20,Math.min(100,+$("startBattery").value||100));let batt=start,idealBatt=start,mins=1.0,dist=0,maxH=0,worst="low",rth=null,metrics=[],cum=0;
   for(let i=0;i<pts.length-1;i++){const a=pts[i],b=pts[i+1],d=hav(a,b),g=ground(bearing(a,b),air),segM=d/Math.max(.1,g.g)/60,segB=segM*drain(air),segIdeal=segM*idealDrain(air);const steps=Math.max(1,Math.ceil(d/100));
     for(let s=1;s<=steps;s++){const t=s/steps,p={lat:a.lat+(b.lat-a.lat)*t,lng:a.lng+(b.lng-a.lng)*t};cum+=d/steps;mins+=segM/steps;batt-=segB/steps;idealBatt-=segIdeal/steps;maxH=Math.max(maxH,hav(state.home,p));const sr=sigRisk(p);if(rank(sr)>rank(worst))worst=sr;const need=estimateRTH(p,air,res);if(!rth&&batt<=need)rth={p,dist:cum,batt,need}}
     dist+=d;if(i<state.wps.length){metrics.push({dist,batt,need:estimateRTH(b,air,res),sig:sigRisk(b)})}
@@ -273,7 +278,7 @@ function recalc(){
   $("legal").className=(badD||badA||insideVer||vis<1.5)?"crit":"good";
   $("legal").textContent=(badD||badA||insideVer||vis<1.5)?`NOM: alerta${insideVer?" · Home <9.2 km VER":""}${badD?" · >457 m":""}${badA?" · >"+lim+" m AGL":""}${vis<1.5?" · vis <1.5 km":""}`:`NOM: sin alerta básica · VER ${dVer.toFixed(1)} km`;
   if(windMs>AIR3S.maxWindMs){$("tech").className="crit";$("tech").textContent="Técnico: viento supera 12 m/s publicado por DJI"}
-  $("explain").innerHTML=`Ruta <b>${(s.dist/1000).toFixed(2)} km</b>, máximo <b>${(s.maxH/1000).toFixed(2)} km</b> del Home. Batería de planificación <b>${Math.max(0,s.batt).toFixed(0)}%</b>; escenario ideal DJI <b>${Math.max(0,s.idealBatt).toFixed(0)}%</b>. ${s.air>13.5?"La velocidad elegida supera el punto de ensayo de distancia de DJI, por lo que el consumo se extrapola. ":""}${s.rth?`El marcador R aparece cerca de ${(s.rth.dist/1000).toFixed(1)} km acumulados.`:"No aparece RTH técnico anticipado con la reserva actual."}`;
+  $("explain").innerHTML=`Ruta <b>${(s.dist/1000).toFixed(2)} km</b>, máximo <b>${(s.maxH/1000).toFixed(2)} km</b> del Home. Batería de planificación <b>${Math.max(0,s.batt).toFixed(0)}%</b>; escenario ideal DJI <b>${Math.max(0,s.idealBatt).toFixed(0)}%</b>. ${s.air>13.5?"La velocidad elegida supera el punto de ensayo de distancia de DJI, por lo que el consumo se extrapola. ":""}${s.rth?`El marcador R heurístico aparece cerca de ${(s.rth.dist/1000).toFixed(1)} km acumulados.`:"No aparece RTH técnico anticipado con la reserva actual."}`;
 }
 function renderTable(s){const b=$("tbody");b.innerHTML="";if(!state.wps.length){b.innerHTML='<tr><td colspan="7" class="mini">Añade waypoints.</td></tr>';return}state.wps.forEach((w,i)=>{const m=s&&s.metrics[i],tr=document.createElement("tr");tr.innerHTML=`<td>WP${i+1}</td><td><input data-a="${i}" type="number" min="10" max="122" value="${w.alt}" style="width:70px"></td><td>${m?(m.dist/1000).toFixed(2)+" km":"—"}</td><td>${m?m.batt.toFixed(0)+"%":"—"}</td><td>${m?m.need.toFixed(0)+"%":"—"}</td><td>${m?{low:"Bajo",medium:"Medio",high:"Alto",critical:"Crítico"}[m.sig]:"—"}</td><td><button class="btn small" data-x="${i}">×</button></td>`;b.appendChild(tr)});b.querySelectorAll("[data-a]").forEach(x=>x.onchange=()=>{state.wps[+x.dataset.a].alt=Math.min(122,Math.max(10,+x.value||80));recalc()});b.querySelectorAll("[data-x]").forEach(x=>x.onclick=()=>{state.wps.splice(+x.dataset.x,1);recalc()})}
 
@@ -299,7 +304,7 @@ async function loadWeather(){
     recalc();
   }catch(e){$("weatherInfo").textContent="No se pudo cargar el pronóstico. Mantén valores manuales y vuelve a intentar."}
 }
-function planData(){return{version:4,home:state.home,wps:state.wps,landing:state.landing,settings:{returnHome:$("returnHome").checked,speed:+$("speed").value,reserve:+$("reserve").value,wind:+$("wind").value,gust:+$("gust").value,windDir:+$("windDir").value,rthAlt:+$("rthAlt").value,rf:$("rf").value,safety:+$("safety").value,windLevel:+$("windLevel").value,visibility:+$("visibility").value,flightTime:$("flightTime").value}}}
+function planData(){return{version:4,home:state.home,wps:state.wps,landing:state.landing,settings:{returnHome:$("returnHome").checked,speed:+$("speed").value,reserve:+$("reserve").value,startBattery:+$("startBattery").value,wind:+$("wind").value,gust:+$("gust").value,windDir:+$("windDir").value,rthAlt:+$("rthAlt").value,rf:$("rf").value,safety:+$("safety").value,windLevel:+$("windLevel").value,visibility:+$("visibility").value,flightTime:$("flightTime").value}}}
 function restorePlan(d){
   if(!d)return; state.home=d.home||null;state.wps=d.wps||[];state.landing=d.landing||null;const q=d.settings||{};
   Object.keys(q).forEach(k=>{if($(k)){if($(k).type==="checkbox")$(k).checked=!!q[k];else $(k).value=q[k]}});
@@ -384,9 +389,10 @@ $("streetBtn").onclick=(e)=>{e.stopPropagation();state.layer="street";$("streetB
 $("navMode").onclick=(e)=>{e.stopPropagation();setInteraction("nav")};
 $("editMode").onclick=(e)=>{e.stopPropagation();setInteraction("edit")};
 $("homeMode").onclick=()=>{setMode("home");setInteraction("edit")};$("wpMode").onclick=()=>{setMode("wp");setInteraction("edit")};$("landMode").onclick=()=>{setMode("land");setInteraction("edit")};$("undo").onclick=()=>{state.wps.pop();recalc()};$("clear").onclick=()=>{state.home=null;state.wps=[];state.landing=null;setMode("home");recalc()};
-["returnHome","speed","reserve","wind","gust","windDir","rthAlt","rf","nom","ring","safety","visibility"].forEach(id=>$(id).addEventListener("change",recalc));document.querySelectorAll(".preset").forEach(b=>b.onclick=()=>{$("wind").value=b.dataset.w;$("gust").value=b.dataset.g;$("windDir").value=b.dataset.d;recalc()});$("weatherBtn").onclick=loadWeather;$("saveLocal").onclick=()=>{localStorage.setItem("air3s-plan-v4",JSON.stringify(planData()));$("weatherInfo").textContent="Plan guardado en este dispositivo."};$("restoreLocal").onclick=()=>{const x=localStorage.getItem("air3s-plan-v4");if(x)restorePlan(JSON.parse(x));else alert("No hay plan guardado.");};
+["returnHome","speed","reserve","startBattery","wind","gust","windDir","rthAlt","rf","nom","ring","safety","visibility"].forEach(id=>$(id).addEventListener("change",recalc));document.querySelectorAll(".preset").forEach(b=>b.onclick=()=>{$("wind").value=b.dataset.w;$("gust").value=b.dataset.g;$("windDir").value=b.dataset.d;recalc()});$("geoHome").onclick=()=>{if(!navigator.geolocation){alert("Este navegador no ofrece ubicación.");return}navigator.geolocation.getCurrentPosition(pos=>{state.home={lat:pos.coords.latitude,lng:pos.coords.longitude,alt:0};state.center={lat:state.home.lat,lng:state.home.lng};state.zoom=16;setMode("wp");setInteraction("nav");renderTiles();recalc()},()=>alert("Safari no dio permiso de ubicación."),{enableHighAccuracy:true,timeout:10000,maximumAge:30000})};$("weatherBtn").onclick=loadWeather;$("saveLocal").onclick=()=>{localStorage.setItem("air3s-plan-v4",JSON.stringify(planData()));$("weatherInfo").textContent="Plan guardado en este dispositivo."};$("restoreLocal").onclick=()=>{const x=localStorage.getItem("air3s-plan-v4");if(x)restorePlan(JSON.parse(x));else alert("No hay plan guardado.");};
 function dl(name,text,type){const a=document.createElement("a"),blob=new Blob([text],{type});a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),500)}
 $("export").onclick=()=>dl("air3s-plan.json",JSON.stringify(planData(),null,2),"application/json");
+$("importJson").onchange=e=>{const f=e.target.files&&e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{try{restorePlan(JSON.parse(rd.result));$("weatherInfo").textContent="Plan importado correctamente."}catch(_){alert("Ese archivo JSON no es un plan válido.")}};rd.readAsText(f);e.target.value=""};
 $("kml").onclick=()=>{if(!state.home||!state.wps.length)return;const p=[state.home,...state.wps,...($("returnHome").checked?[state.home]:state.landing?[state.landing]:[])],coords=p.map(x=>`${x.lng},${x.lat},${x.alt||80}`).join(" ");dl("air3s-plan.kml",`<?xml version="1.0"?><kml xmlns="http://www.opengis.net/kml/2.2"><Placemark><LineString><altitudeMode>relativeToGround</altitudeMode><coordinates>${coords}</coordinates></LineString></Placemark></kml>`,"application/vnd.google-earth.kml+xml")};
 window.addEventListener("resize",renderTiles);$("flightTime").value=localDateTimeValue(new Date(Date.now()+60*60*1000));setMode("home");setInteraction("nav");renderTiles();recalc();if("serviceWorker" in navigator&&location.protocol==="https:")window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(()=>{}));
 })();
