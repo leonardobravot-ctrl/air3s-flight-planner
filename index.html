@@ -436,22 +436,27 @@ async function loadWeather(){
     if(!samplePoints.some(x=>hav(x,far)<50))samplePoints.push(far);
   }
   const target=$("flightTime").value?new Date($("flightTime").value):new Date();
+  const useCurrent=Math.abs(target.getTime()-Date.now())<=45*60*1000;
   $("weatherInfo").textContent="Cargando Open‑Meteo para "+samplePoints.length+" punto(s)…";
   $("weatherSource").textContent="● Fuente: cargando modelo meteorológico";
   try{
     const samples=await Promise.all(samplePoints.map(async p=>{
-      const url="https://api.open-meteo.com/v1/forecast?latitude="+p.lat+"&longitude="+p.lng+"&hourly=wind_speed_10m,wind_direction_10m,wind_speed_80m,wind_direction_80m,wind_speed_120m,wind_direction_120m,wind_gusts_10m,visibility,precipitation&timezone=auto&forecast_days=7";
+      const vars="wind_speed_10m,wind_direction_10m,wind_speed_80m,wind_direction_80m,wind_speed_120m,wind_direction_120m,wind_gusts_10m,visibility,precipitation";
+      const url="https://api.open-meteo.com/v1/forecast?latitude="+p.lat+"&longitude="+p.lng+"&hourly="+vars+"&current="+vars+"&timezone=auto&forecast_days=7";
       const j=await fetch(url).then(r=>r.json());if(!j.hourly)throw new Error("Sin hourly");
+      if(useCurrent&&j.current&&j.current.wind_speed_80m!=null){
+        return{lat:p.lat,lng:p.lng,time:j.current.time,elevation:j.elevation,current:true,10:{speedKmh:j.current.wind_speed_10m,dirFrom:j.current.wind_direction_10m},80:{speedKmh:j.current.wind_speed_80m,dirFrom:j.current.wind_direction_80m},120:{speedKmh:j.current.wind_speed_120m,dirFrom:j.current.wind_direction_120m},gust10:j.current.wind_gusts_10m,visibilityKm:j.current.visibility/1000,precip:j.current.precipitation};
+      }
       let bi=0,bd=Infinity;j.hourly.time.forEach((t,i)=>{const dd=Math.abs(new Date(t).getTime()-target.getTime());if(dd<bd){bd=dd;bi=i}});
-      return{lat:p.lat,lng:p.lng,time:j.hourly.time[bi],elevation:j.elevation,10:{speedKmh:j.hourly.wind_speed_10m[bi],dirFrom:j.hourly.wind_direction_10m[bi]},80:{speedKmh:j.hourly.wind_speed_80m[bi],dirFrom:j.hourly.wind_direction_80m[bi]},120:{speedKmh:j.hourly.wind_speed_120m[bi],dirFrom:j.hourly.wind_direction_120m[bi]},gust10:j.hourly.wind_gusts_10m[bi],visibilityKm:j.hourly.visibility[bi]/1000,precip:j.hourly.precipitation[bi]};
+      return{lat:p.lat,lng:p.lng,time:j.hourly.time[bi],elevation:j.elevation,current:false,10:{speedKmh:j.hourly.wind_speed_10m[bi],dirFrom:j.hourly.wind_direction_10m[bi]},80:{speedKmh:j.hourly.wind_speed_80m[bi],dirFrom:j.hourly.wind_direction_80m[bi]},120:{speedKmh:j.hourly.wind_speed_120m[bi],dirFrom:j.hourly.wind_direction_120m[bi]},gust10:j.hourly.wind_gusts_10m[bi],visibilityKm:j.hourly.visibility[bi]/1000,precip:j.hourly.precipitation[bi]};
     }));
-    state.weatherProfile={samples:samples,time:samples[0].time,loadedAt:new Date().toISOString()};
+    state.weatherProfile={samples:samples,time:samples[0].time,loadedAt:new Date().toISOString(),current:useCurrent};
     const lv=+$("windLevel").value||80,w=windAtAltitude(lv,state.home);
     const avgG=samples.reduce((a,s)=>a+s.gust10,0)/samples.length,avgV=samples.reduce((a,s)=>a+s.visibilityKm,0)/samples.length,avgP=samples.reduce((a,s)=>a+s.precip,0)/samples.length;
     $("wind").value=w.speedKmh.toFixed(1);$("windDir").value=Math.round(w.dirFrom);$("gust").value=avgG.toFixed(1);$("visibility").value=avgV.toFixed(1);
     const av=alt=>samples.reduce((a,s)=>a+s[alt].speedKmh,0)/samples.length;
-    $("weatherInfo").textContent="Pronóstico válido ~"+samples[0].time+". Promedio de "+samples.length+" muestra(s): 10 m "+av(10).toFixed(1)+" km/h · 80 m "+av(80).toFixed(1)+" · 120 m "+av(120).toFixed(1)+" · racha 10 m "+avgG.toFixed(1)+" · vis "+avgV.toFixed(1)+" km · precip. "+avgP.toFixed(1)+" mm.";
-    $("weatherSource").textContent="● Fuente: Open‑Meteo · pronóstico modelado, no sensor en vivo";
+    $("weatherInfo").textContent=(useCurrent?"Modelo actual ":"Pronóstico válido ~")+samples[0].time+". Promedio de "+samples.length+" muestra(s): 10 m "+av(10).toFixed(1)+" km/h · 80 m "+av(80).toFixed(1)+" · 120 m "+av(120).toFixed(1)+" · racha 10 m "+avgG.toFixed(1)+" · vis "+avgV.toFixed(1)+" km · precip. "+avgP.toFixed(1)+" mm.";
+    $("weatherSource").textContent=useCurrent?"● Fuente: Open‑Meteo · current model (~15 min), no estación":"● Fuente: Open‑Meteo · pronóstico modelado, no sensor en vivo";
     recalc();analyzeAltitude();
   }catch(e){
     state.weatherProfile=null;$("weatherInfo").textContent="No se pudo cargar el pronóstico. Mantén valores manuales y vuelve a intentar.";$("weatherSource").textContent="● Fuente: valores manuales";
