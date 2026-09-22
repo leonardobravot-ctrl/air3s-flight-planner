@@ -107,7 +107,18 @@
           <button class="btn small" id="saveLocal">Guardar plan</button>
           <button class="btn small" id="restoreLocal">Restaurar</button>
         </div>
-        <div id="weatherInfo" class="hint" style="margin-top:6px">Clima manual. Open‑Meteo carga el pronóstico del centro aproximado de la ruta a 10/80/120 m para la hora elegida.</div>
+        <div id="weatherInfo" class="hint" style="margin-top:6px">Clima manual. Open‑Meteo puede cargar pronóstico modelado a 10/80/120 m para varios puntos de la ruta.</div>
+<div class="sourcebadge" id="weatherSource">● Fuente: valores manuales</div>
+<div class="actions" style="margin-top:7px">
+  <button class="btn small" id="nowBtn">Ahora</button>
+  <button class="btn small" id="optAltBtn">↕ Analizar mejor altitud</button>
+  <button class="btn small" id="applyAltBtn" disabled>Aplicar sugerencia</button>
+</div>
+<div class="altcard">
+  <h4>Altitud inteligente</h4>
+  <div id="altAdvice" class="altresult">Carga el pronóstico y dibuja una ruta. Compararé altitudes usando viento modelado por altura y el consumo estimado del Air 3S.</div>
+  <div id="altGrid" class="altgrid"></div>
+</div>
         <div class="actions" style="margin-top:7px">
           <button class="btn small preset" data-w="0" data-g="0" data-d="0">Calma</button>
           <button class="btn small preset" data-w="15" data-g="22" data-d="0">Norte 15</button>
@@ -285,9 +296,18 @@ function componentsToWind(e,n){
   const speed=Math.hypot(e,n),to=(deg(Math.atan2(e,n))+360)%360,from=(to+180)%360;
   return {speedKmh:speed*3.6,dirFrom:from};
 }
-function windAtAltitude(alt){
-  if(!state.weatherProfile)return{speedKmh:+$("wind").value||0,dirFrom:+$("windDir").value||0,source:"manual"};
-  const p=state.weatherProfile;let lo=10,hi=80;
+function nearestWeatherSample(point){
+  if(!state.weatherProfile)return null;
+  if(state.weatherProfile.samples&&state.weatherProfile.samples.length){
+    if(!point)return state.weatherProfile.samples[0];
+    return state.weatherProfile.samples.reduce((best,s)=>!best||hav(point,s)<hav(point,best)?s:best,null);
+  }
+  return state.weatherProfile;
+}
+function windAtAltitude(alt,point=null){
+  const p=nearestWeatherSample(point);
+  if(!p)return{speedKmh:+$("wind").value||0,dirFrom:+$("windDir").value||0,source:"manual"};
+  let lo=10,hi=80;
   if(alt<=10){lo=hi=10}else if(alt>=120){lo=hi=120}else if(alt>80){lo=80;hi=120}
   if(lo===hi)return{speedKmh:p[lo].speedKmh,dirFrom:p[lo].dirFrom,source:"forecast"};
   const t=(alt-lo)/(hi-lo),a=windComponents(p[lo].speedKmh,p[lo].dirFrom),b=windComponents(p[hi].speedKmh,p[hi].dirFrom);
@@ -298,8 +318,8 @@ function segmentAltitude(a,b){
   if(aa>0&&bb>0)return(aa+bb)/2;
   return Math.max(aa,bb,+$("windLevel").value||80);
 }
-function ground(track,air,alt=+$("windLevel").value||80){
-  const w=windAtAltitude(alt),ws=w.speedKmh/3.6,from=w.dirFrom%360,to=(from+180)%360,d=rad(((to-track+540)%360)-180),par=ws*Math.cos(d),cross=ws*Math.sin(d);
+function ground(track,air,alt=+$("windLevel").value||80,point=null){
+  const w=windAtAltitude(alt,point),ws=w.speedKmh/3.6,from=w.dirFrom%360,to=(from+180)%360,d=rad(((to-track+540)%360)-180),par=ws*Math.cos(d),cross=ws*Math.sin(d);
   if(Math.abs(cross)>=air)return{ok:false,g:.1,wind:w,alt};
   return{ok:true,g:Math.max(.1,par+Math.sqrt(Math.max(0,air*air-cross*cross))),wind:w,alt};
 }
@@ -319,7 +339,7 @@ function rank(x){return{low:0,medium:1,high:2,critical:3}[x]}
 function segmentRisk(a,b){
   let r="low";
   [a,b,{lat:(a.lat+b.lat)/2,lng:(a.lng+b.lng)/2}].forEach(p=>{const x=sigRisk(p);if(rank(x)>rank(r))r=x});
-  const alt=segmentAltitude(a,b),g=ground(bearing(a,b),+$("speed").value||9,alt),windMs=g.wind.speedKmh/3.6;
+  const mid={lat:(a.lat+b.lat)/2,lng:(a.lng+b.lng)/2},alt=segmentAltitude(a,b),g=ground(bearing(a,b),+$("speed").value||9,alt,mid),windMs=g.wind.speedKmh/3.6;
   if(!g.ok||windMs>AIR3S.maxWindMs)r="critical";
   else if(windMs>AIR3S.maxWindMs*.8&&rank(r)<2)r="high";
   else if(windMs>AIR3S.maxWindMs*.6&&rank(r)<1)r="medium";
@@ -327,7 +347,7 @@ function segmentRisk(a,b){
 }
 function estimateRTH(p,air,reserve,alt=+$("rthAlt").value||90){
   if(!state.home)return 100;
-  const d=hav(p,state.home),g=ground(bearing(p,state.home),air,alt);
+  const d=hav(p,state.home),g=ground(bearing(p,state.home),air,alt,p);
   if(!g.ok)return 100;
   const mins=d/g.g/60+1.4;
   return mins*drain(air)+reserve+3
@@ -336,10 +356,10 @@ function simulate(overrideAlt=null){
   if(!state.home||!state.wps.length)return null;
   const pts=[state.home,...state.wps.map(p=>overrideAlt==null?p:{...p,alt:overrideAlt})];
   if($("returnHome").checked)pts.push(state.home);else if(state.landing)pts.push(state.landing);else return null;
-  const air=+$("speed").value||9,res=+$("reserve").value||25;
-  let batt=97,idealBatt=97,mins=1.0,dist=0,maxH=0,worst="low",rth=null,metrics=[],cum=0,maxWind=0;
+  const air=+$("speed").value||9,res=+$("reserve").value||25,start=Math.max(20,Math.min(100,+$("startBattery").value||100));
+  let batt=start,idealBatt=start,mins=1.0,dist=0,maxH=0,worst="low",rth=null,metrics=[],cum=0,maxWind=0;
   for(let i=0;i<pts.length-1;i++){
-    const a=pts[i],b=pts[i+1],d=hav(a,b),alt=overrideAlt==null?segmentAltitude(a,b):overrideAlt,g=ground(bearing(a,b),air,alt),segM=d/Math.max(.1,g.g)/60,segB=segM*drain(air),segIdeal=segM*idealDrain(air),steps=Math.max(1,Math.ceil(d/100));
+    const a=pts[i],b=pts[i+1],d=hav(a,b),mid={lat:(a.lat+b.lat)/2,lng:(a.lng+b.lng)/2},alt=overrideAlt==null?segmentAltitude(a,b):overrideAlt,g=ground(bearing(a,b),air,alt,mid),segM=d/Math.max(.1,g.g)/60,segB=segM*drain(air),segIdeal=segM*idealDrain(air),steps=Math.max(1,Math.ceil(d/100));
     maxWind=Math.max(maxWind,g.wind.speedKmh);
     for(let s=1;s<=steps;s++){
       const t=s/steps,p={lat:a.lat+(b.lat-a.lat)*t,lng:a.lng+(b.lng-a.lng)*t,alt};
@@ -366,12 +386,13 @@ function analyzeAltitude(){
   const lim=legalAltitudeLimit();
   if(lim===0){state.suggestedAlt=null;$("applyAltBtn").disabled=true;$("altAdvice").textContent="El Home está dentro de 9.2 km del centro VER según este chequeo básico; no voy a recomendar una altitud de misión recreativa.";$("altGrid").innerHTML="";return}
   const candidates=[20,30,40,50,60,70,80,90,100,110,120].filter(a=>a<=lim);
-  const results=candidates.map(alt=>{const s=simulate(alt),w=windAtAltitude(alt);return{alt,s,wind:w.speedKmh,dir:w.dirFrom,valid:s&&s.batt>=s.res&&w.speedKmh/3.6<=AIR3S.maxWindMs}}).filter(x=>x.s);
+  const refPoint=state.wps[Math.floor(state.wps.length/2)]||state.home;
+  const results=candidates.map(alt=>{const s=simulate(alt),w=windAtAltitude(alt,refPoint);return{alt,s,wind:w.speedKmh,dir:w.dirFrom,valid:s&&s.batt>=s.res&&w.speedKmh/3.6<=AIR3S.maxWindMs}}).filter(x=>x.s);
   const valid=results.filter(x=>x.valid),pool=valid.length?valid:results;
   const best=[...pool].sort((a,b)=>b.s.batt-a.s.batt||a.s.mins-b.s.mins)[0];
   state.suggestedAlt=best?best.alt:null;$("applyAltBtn").disabled=!best;
   $("altGrid").innerHTML=results.map(x=>'<div class="altmini '+(best&&x.alt===best.alt?'best':'')+'"><b>'+x.alt+' m '+(best&&x.alt===best.alt?'★':'')+'</b><span>viento '+x.wind.toFixed(1)+' km/h · final '+Math.max(0,x.s.batt).toFixed(0)+'% · '+x.s.mins.toFixed(1)+' min</span></div>').join("");
-  if(best)$("altAdvice").innerHTML='<b>Sugerencia: '+best.alt+' m AGL</b>. Entre las altitudes comparadas deja el mayor margen de batería en este modelo: '+Math.max(0,best.s.batt).toFixed(0)+'% final, con viento modelado '+best.wind.toFixed(1)+' km/h desde '+Math.round(best.dir)+'°. <b>O4:</b> no doy una bonificación por altitud porque DJI no publica una curva O4↔altura y la app no tiene un modelo 3D fiable de edificios/árboles.';
+  if(best)$("altAdvice").innerHTML='<b>Sugerencia técnica: '+best.alt+' m AGL</b>. Entre las alturas comparadas deja el mayor margen de batería en este modelo: '+Math.max(0,best.s.batt).toFixed(0)+'% final, con viento modelado ~'+best.wind.toFixed(1)+' km/h. <b>No la elijo por transmisión:</b> DJI no publica una curva O4↔altura y la app no tiene un modelo 3D fiable de obstáculos. Tampoco sumo un costo exacto de subida/bajada porque DJI no publica una curva de consumo vertical.';
 }
 function applySuggestedAltitude(){
   if(state.suggestedAlt==null)return;
@@ -382,7 +403,7 @@ function applySuggestedAltitude(){
 }
 
 function recalc(){
-  renderOverlay();const s=simulate();const activeWind=windAtAltitude(+$("windLevel").value||80);$("windV").textContent=`${activeWind.speedKmh.toFixed(1)}/${+$("gust").value||0} km/h`;renderTable(s);
+  renderOverlay();const s=simulate();const activeWind=windAtAltitude(+$("windLevel").value||80,state.home);$("windV").textContent=`${activeWind.speedKmh.toFixed(1)}/${+$("gust").value||0} km/h`;renderTable(s);
   if(!s){["distV","timeV","batV","homeV","rthV","sigV","extraV"].forEach(id=>$(id).textContent="—");$("tech").className="warn";$("tech").textContent="Técnico: esperando ruta";$("legal").className="warn";$("legal").textContent="NOM: esperando ruta";$("explain").textContent="Marca Home y al menos un waypoint.";return}
   $("distV").textContent=(s.dist/1000).toFixed(2)+" km";$("timeV").textContent=s.mins.toFixed(1)+" min";$("batV").textContent=Math.max(0,s.batt).toFixed(0)+"% / "+Math.max(0,s.idealBatt).toFixed(0)+"%";$("homeV").textContent=(s.maxH/1000).toFixed(2)+" km";$("rthV").textContent=s.rth?(s.rth.dist/1000).toFixed(1)+" km":"No antes del fin";$("sigV").textContent={low:"Bajo",medium:"Medio",high:"Alto",critical:"Crítico"}[s.worst];
   $("extraV").textContent=(s.batt-s.res).toFixed(0)+"%";
@@ -390,7 +411,7 @@ function recalc(){
   const maxAlt=Math.max(...state.wps.map(w=>w.alt),+$("rthAlt").value||0);
   const dVer=hav(state.home,VER)/1000,lim=(dVer>=9.2&&dVer<=18.5)?100:122;
   const badD=$("nom").checked&&s.maxH>457,badA=maxAlt>lim,insideVer=dVer<9.2;
-  const windMs=(s.maxWind||windAtAltitude(+$("windLevel").value||80).speedKmh)/3.6,vis=+$("visibility").value||0;
+  const windMs=(s.maxWind||windAtAltitude(+$("windLevel").value||80,state.home).speedKmh)/3.6,vis=+$("visibility").value||0;
   $("legal").className=(badD||badA||insideVer||vis<1.5)?"crit":"good";
   $("legal").textContent=(badD||badA||insideVer||vis<1.5)?`NOM: alerta${insideVer?" · Home <9.2 km VER":""}${badD?" · >457 m":""}${badA?" · >"+lim+" m AGL":""}${vis<1.5?" · vis <1.5 km":""}`:`NOM: sin alerta básica · VER ${dVer.toFixed(1)} km`;
   if(windMs>AIR3S.maxWindMs){$("tech").className="crit";$("tech").textContent="Técnico: viento supera 12 m/s publicado por DJI"}
@@ -405,23 +426,28 @@ function localDateTimeValue(d){
 }
 async function loadWeather(){
   if(!state.home){alert("Primero coloca Home.");return}
-  const pts=[state.home,...state.wps],center=pts.reduce((a,p)=>({lat:a.lat+p.lat/pts.length,lng:a.lng+p.lng/pts.length}),{lat:0,lng:0});
-  const url=`https://api.open-meteo.com/v1/forecast?latitude=${center.lat}&longitude=${center.lng}&hourly=wind_speed_10m,wind_direction_10m,wind_speed_80m,wind_direction_80m,wind_speed_120m,wind_direction_120m,wind_gusts_10m,visibility,precipitation&timezone=auto&forecast_days=7`;
-  $("weatherInfo").textContent="Cargando Open‑Meteo…";$("weatherSource").textContent="● Fuente: cargando modelo meteorológico";
+  const rp=[state.home,...state.wps],samplePoints=[state.home];
+  if(rp.length>2)samplePoints.push(rp[Math.floor(rp.length/2)]);
+  if(state.wps.length){
+    const far=state.wps.reduce((a,p)=>hav(state.home,p)>hav(state.home,a)?p:a,state.wps[0]);
+    if(!samplePoints.some(x=>hav(x,far)<50))samplePoints.push(far);
+  }
+  const target=$("flightTime").value?new Date($("flightTime").value):new Date();
+  $("weatherInfo").textContent="Cargando Open‑Meteo para "+samplePoints.length+" punto(s)…";
+  $("weatherSource").textContent="● Fuente: cargando modelo meteorológico";
   try{
-    const j=await fetch(url).then(r=>r.json());if(!j.hourly)throw new Error("Sin hourly");
-    const target=$("flightTime").value?new Date($("flightTime").value):new Date();let bi=0,bd=Infinity;
-    j.hourly.time.forEach((t,i)=>{const dd=Math.abs(new Date(t).getTime()-target.getTime());if(dd<bd){bd=dd;bi=i}});
-    state.weatherProfile={
-      time:j.hourly.time[bi],latitude:j.latitude,longitude:j.longitude,elevation:j.elevation,
-      10:{speedKmh:j.hourly.wind_speed_10m[bi],dirFrom:j.hourly.wind_direction_10m[bi]},
-      80:{speedKmh:j.hourly.wind_speed_80m[bi],dirFrom:j.hourly.wind_direction_80m[bi]},
-      120:{speedKmh:j.hourly.wind_speed_120m[bi],dirFrom:j.hourly.wind_direction_120m[bi]},
-      gust10:j.hourly.wind_gusts_10m[bi],visibilityKm:j.hourly.visibility[bi]/1000,precip:j.hourly.precipitation[bi]
-    };
-    const lv=+$("windLevel").value||80,w=windAtAltitude(lv);
-    $("wind").value=w.speedKmh.toFixed(1);$("windDir").value=Math.round(w.dirFrom);$("gust").value=state.weatherProfile.gust10.toFixed(1);$("visibility").value=state.weatherProfile.visibilityKm.toFixed(1);
-    $("weatherInfo").textContent="Pronóstico válido "+state.weatherProfile.time+". 10 m: "+state.weatherProfile[10].speedKmh.toFixed(1)+" km/h · 80 m: "+state.weatherProfile[80].speedKmh.toFixed(1)+" · 120 m: "+state.weatherProfile[120].speedKmh.toFixed(1)+". Racha 10 m: "+state.weatherProfile.gust10.toFixed(1)+" km/h · vis "+state.weatherProfile.visibilityKm.toFixed(1)+" km · precip. "+state.weatherProfile.precip+" mm.";
+    const samples=await Promise.all(samplePoints.map(async p=>{
+      const url="https://api.open-meteo.com/v1/forecast?latitude="+p.lat+"&longitude="+p.lng+"&hourly=wind_speed_10m,wind_direction_10m,wind_speed_80m,wind_direction_80m,wind_speed_120m,wind_direction_120m,wind_gusts_10m,visibility,precipitation&timezone=auto&forecast_days=7";
+      const j=await fetch(url).then(r=>r.json());if(!j.hourly)throw new Error("Sin hourly");
+      let bi=0,bd=Infinity;j.hourly.time.forEach((t,i)=>{const dd=Math.abs(new Date(t).getTime()-target.getTime());if(dd<bd){bd=dd;bi=i}});
+      return{lat:p.lat,lng:p.lng,time:j.hourly.time[bi],elevation:j.elevation,10:{speedKmh:j.hourly.wind_speed_10m[bi],dirFrom:j.hourly.wind_direction_10m[bi]},80:{speedKmh:j.hourly.wind_speed_80m[bi],dirFrom:j.hourly.wind_direction_80m[bi]},120:{speedKmh:j.hourly.wind_speed_120m[bi],dirFrom:j.hourly.wind_direction_120m[bi]},gust10:j.hourly.wind_gusts_10m[bi],visibilityKm:j.hourly.visibility[bi]/1000,precip:j.hourly.precipitation[bi]};
+    }));
+    state.weatherProfile={samples:samples,time:samples[0].time,loadedAt:new Date().toISOString()};
+    const lv=+$("windLevel").value||80,w=windAtAltitude(lv,state.home);
+    const avgG=samples.reduce((a,s)=>a+s.gust10,0)/samples.length,avgV=samples.reduce((a,s)=>a+s.visibilityKm,0)/samples.length,avgP=samples.reduce((a,s)=>a+s.precip,0)/samples.length;
+    $("wind").value=w.speedKmh.toFixed(1);$("windDir").value=Math.round(w.dirFrom);$("gust").value=avgG.toFixed(1);$("visibility").value=avgV.toFixed(1);
+    const av=alt=>samples.reduce((a,s)=>a+s[alt].speedKmh,0)/samples.length;
+    $("weatherInfo").textContent="Pronóstico válido ~"+samples[0].time+". Promedio de "+samples.length+" muestra(s): 10 m "+av(10).toFixed(1)+" km/h · 80 m "+av(80).toFixed(1)+" · 120 m "+av(120).toFixed(1)+" · racha 10 m "+avgG.toFixed(1)+" · vis "+avgV.toFixed(1)+" km · precip. "+avgP.toFixed(1)+" mm.";
     $("weatherSource").textContent="● Fuente: Open‑Meteo · pronóstico modelado, no sensor en vivo";
     recalc();analyzeAltitude();
   }catch(e){
@@ -513,7 +539,7 @@ $("streetBtn").onclick=(e)=>{e.stopPropagation();state.layer="street";$("streetB
 $("navMode").onclick=(e)=>{e.stopPropagation();setInteraction("nav")};
 $("editMode").onclick=(e)=>{e.stopPropagation();setInteraction("edit")};
 $("homeMode").onclick=()=>{setMode("home");setInteraction("edit")};$("wpMode").onclick=()=>{setMode("wp");setInteraction("edit")};$("landMode").onclick=()=>{setMode("land");setInteraction("edit")};$("undo").onclick=()=>{state.wps.pop();recalc()};$("clear").onclick=()=>{state.home=null;state.wps=[];state.landing=null;setMode("home");recalc()};
-["returnHome","speed","reserve","startBattery","wind","gust","windDir","rthAlt","rf","nom","ring","safety","visibility"].forEach(id=>$(id).addEventListener("change",recalc));document.querySelectorAll(".preset").forEach(b=>b.onclick=()=>{$("wind").value=b.dataset.w;$("gust").value=b.dataset.g;$("windDir").value=b.dataset.d;recalc()});$("geoHome").onclick=()=>{if(!navigator.geolocation){alert("Este navegador no ofrece ubicación.");return}navigator.geolocation.getCurrentPosition(pos=>{state.home={lat:pos.coords.latitude,lng:pos.coords.longitude,alt:0};state.center={lat:state.home.lat,lng:state.home.lng};state.zoom=16;setMode("wp");setInteraction("nav");renderTiles();recalc()},()=>alert("Safari no dio permiso de ubicación."),{enableHighAccuracy:true,timeout:10000,maximumAge:30000})};$("weatherBtn").onclick=loadWeather;$("nowBtn").onclick=()=>{$("flightTime").value=localDateTimeValue(new Date());loadWeather()};$("optAltBtn").onclick=analyzeAltitude;$("applyAltBtn").onclick=applySuggestedAltitude;$("saveLocal").onclick=()=>{localStorage.setItem("air3s-plan-v5",JSON.stringify(planData()));$("weatherInfo").textContent="Plan guardado en este dispositivo."};$("restoreLocal").onclick=()=>{const x=localStorage.getItem("air3s-plan-v5");if(x)restorePlan(JSON.parse(x));else alert("No hay plan guardado.");};
+["returnHome","speed","reserve","startBattery","wind","gust","windDir","rthAlt","rf","nom","ring","safety","visibility"].forEach(id=>$(id).addEventListener("change",recalc));$("windLevel").addEventListener("change",()=>{if(state.weatherProfile){const w=windAtAltitude(+$("windLevel").value,state.home);$("wind").value=w.speedKmh.toFixed(1);$("windDir").value=Math.round(w.dirFrom)}recalc()});document.querySelectorAll(".preset").forEach(b=>b.onclick=()=>{$("wind").value=b.dataset.w;$("gust").value=b.dataset.g;$("windDir").value=b.dataset.d;recalc()});$("geoHome").onclick=()=>{if(!navigator.geolocation){alert("Este navegador no ofrece ubicación.");return}navigator.geolocation.getCurrentPosition(pos=>{state.home={lat:pos.coords.latitude,lng:pos.coords.longitude,alt:0};state.center={lat:state.home.lat,lng:state.home.lng};state.zoom=16;setMode("wp");setInteraction("nav");renderTiles();recalc()},()=>alert("Safari no dio permiso de ubicación."),{enableHighAccuracy:true,timeout:10000,maximumAge:30000})};$("weatherBtn").onclick=loadWeather;$("nowBtn").onclick=()=>{$("flightTime").value=localDateTimeValue(new Date());loadWeather()};$("optAltBtn").onclick=analyzeAltitude;$("applyAltBtn").onclick=applySuggestedAltitude;$("saveLocal").onclick=()=>{localStorage.setItem("air3s-plan-v5",JSON.stringify(planData()));$("weatherInfo").textContent="Plan guardado en este dispositivo."};$("restoreLocal").onclick=()=>{const x=localStorage.getItem("air3s-plan-v5");if(x)restorePlan(JSON.parse(x));else alert("No hay plan guardado.");};
 function dl(name,text,type){const a=document.createElement("a"),blob=new Blob([text],{type});a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),500)}
 $("export").onclick=()=>dl("air3s-plan.json",JSON.stringify(planData(),null,2),"application/json");
 $("importJson").onchange=e=>{const f=e.target.files&&e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{try{restorePlan(JSON.parse(rd.result));$("weatherInfo").textContent="Plan importado correctamente."}catch(_){alert("Ese archivo JSON no es un plan válido.")}};rd.readAsText(f);e.target.value=""};
