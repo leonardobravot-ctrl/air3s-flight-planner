@@ -1,0 +1,9 @@
+{
+  "name": "Air 3S Flight Planner",
+  "short_name": "Air3S Planner",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#07121d",
+  "theme_color": "#07121d",
+  "description": "Planner DJI Air 3S con rutas, viento, batería, O4 y alertas NOM-107."
+}
