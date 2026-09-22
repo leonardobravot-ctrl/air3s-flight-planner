@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=yes">
+<meta name="theme-color" content="#07121d">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Air 3S Planner">
+<link rel="manifest" href="./manifest.webmanifest">
+<title>Air 3S Flight Planner V4</title>
+<style>
+:root{--bg:#07121d;--panel:#0d1e2c;--panel2:#102638;--border:#29465d;--text:#eef8ff;--muted:#9eb8ca;--blue:#48b8ff;--green:#35d77e;--yellow:#ffd34e;--orange:#ff963a;--red:#ff6268}
+*{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}button,input,select{font:inherit}
+.app{max-width:1400px;margin:auto;padding:10px}.head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;margin-bottom:10px}.head h1{font-size:clamp(24px,5vw,38px);margin:0}.head p{margin:4px 0 0;color:var(--muted);font-size:13px}.pill{padding:7px 9px;border:1px solid var(--border);border-radius:999px;font-size:11px;white-space:nowrap;color:#d9edfa}
+.grid{display:grid;grid-template-columns:minmax(290px,360px) 1fr;gap:10px}.panel{background:var(--panel);border:1px solid var(--border);border-radius:15px;padding:11px}.controls{display:grid;gap:12px}.sec h3{margin:0 0 7px;font-size:14px}.toolbar{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}.btn{border:1px solid #36556c;background:#102638;color:white;border-radius:10px;padding:9px;min-height:40px;cursor:pointer}.btn.active{border-color:var(--blue);background:#15334a}.btn.small{font-size:12px;min-height:34px;padding:6px 8px}.row{display:grid;grid-template-columns:1fr 1fr;gap:7px}label{display:grid;gap:4px;font-size:12px;color:#d3e4ef}input,select{width:100%;min-height:37px;border:1px solid #35556d;border-radius:8px;background:#091824;color:white;padding:6px 8px}.hint,.mini{font-size:11px;color:var(--muted);line-height:1.4}.check{display:flex;gap:7px;align-items:flex-start}.check input{width:auto;min-height:auto;margin-top:2px}
+.mapbox{position:relative;border-radius:15px;overflow:hidden;border:1px solid var(--border);background:#0a1722}.map{height:650px;min-height:480px;position:relative;overflow:hidden;touch-action:none;background:#102231}.tiles,.overlay{position:absolute;inset:0}.tile{position:absolute;width:256px;height:256px;user-select:none;-webkit-user-drag:none}.overlay{pointer-events:none}.mapctrl{position:absolute;z-index:6;top:10px;right:10px;display:grid;gap:6px}.mapctrl button{width:42px;height:42px;border-radius:10px;border:1px solid #48657b;background:#0b1b28;color:#fff;font-size:20px}.layerctrl{position:absolute;z-index:6;top:10px;left:10px;display:flex;gap:6px;flex-wrap:wrap}.layerctrl button{border:1px solid #48657b;background:rgba(8,24,36,.9);color:white;border-radius:9px;padding:7px 9px;font-size:11px}.layerctrl button.active{border-color:var(--blue)}.mapmsg{position:absolute;z-index:7;left:10px;right:10px;bottom:10px;background:rgba(6,17,26,.9);border:1px solid #36546a;border-radius:10px;padding:8px 10px;font-size:11px;color:#d9ebf6}.error{position:absolute;z-index:8;inset:50% auto auto 50%;transform:translate(-50%,-50%);max-width:430px;background:#2b1820;border:1px solid #7d3e4b;border-radius:13px;padding:12px;color:#ffdce0;display:none;text-align:center}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:10px}.stat{background:var(--panel);border:1px solid var(--border);border-radius:13px;padding:10px}.stat .k{font-size:10px;color:var(--muted);text-transform:uppercase}.stat .v{font-size:19px;font-weight:800;margin-top:2px}.stat .s{font-size:10px;color:var(--muted);margin-top:2px;line-height:1.35}.status{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}.status span{padding:7px 9px;border-radius:999px;font-size:11px;font-weight:700}.good{background:#123626;color:#8ff0b6;border:1px solid #347c56}.warn{background:#3c3415;color:#ffe58c;border:1px solid #81702d}.bad{background:#3c2013;color:#ffc08c;border:1px solid #8a4b29}.crit{background:#3d171b;color:#ff9ca1;border:1px solid #8b3840}
+.bottom{display:grid;grid-template-columns:1.3fr .7fr;gap:10px;margin-top:10px}.table{overflow:auto;max-height:390px;border:1px solid var(--border);border-radius:10px}table{width:100%;border-collapse:collapse;min-width:690px;font-size:11px}th,td{padding:7px;border-bottom:1px solid #243f53;text-align:left}th{position:sticky;top:0;background:#102638}.note{background:#091824;border:1px solid #304d62;border-radius:10px;padding:9px;font-size:11px;color:#c9dce8;line-height:1.5}.footer{font-size:10px;color:#8da8ba;line-height:1.5;margin-top:10px}.actions{display:flex;flex-wrap:wrap;gap:6px}
+@media(max-width:880px){.grid,.bottom{grid-template-columns:1fr}.map{height:520px}.stats{grid-template-columns:repeat(2,1fr)}.head{flex-direction:column}}
+
+.interactbar{position:absolute;z-index:7;left:10px;bottom:52px;display:flex;gap:6px;flex-wrap:wrap}
+.interactbar button{border:1px solid #48657b;background:rgba(8,24,36,.92);color:white;border-radius:9px;padding:8px 10px;font-size:11px;font-weight:700}
+.interactbar button.active{border-color:#48b8ff;background:#14364d}
+
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="head">
+    <div><h1>Air 3S Flight Planner V4</h1><p>Planner técnico basado en especificaciones DJI, viento por altura y límites NOM‑107.</p></div>
+    <div class="pill">El Dorado · Veracruz</div>
+  </div>
+
+  <div class="grid">
+    <div class="panel controls">
+      <section class="sec">
+        <h3>1 · Dibuja tu misión</h3>
+        <div class="toolbar">
+          <button class="btn active" id="homeMode">🏠 Home</button>
+          <button class="btn" id="wpMode">＋ Waypoint</button>
+          <button class="btn" id="landMode">🛬 Landing</button>
+        </div>
+        <div id="modeText" class="hint" style="margin-top:6px">Toca el mapa donde despegas.</div>
+        <div class="row" style="margin-top:7px"><button class="btn small" id="undo">↶ Quitar WP</button><button class="btn small" id="clear">Borrar misión</button></div>
+        <label class="check" style="margin-top:7px"><input id="returnHome" type="checkbox" checked> Terminar regresando al Home.</label>
+      </section>
+
+      <section class="sec">
+        <h3>2 · Vuelo y viento</h3>
+        <div class="row">
+          <label>Velocidad
+            <select id="speed"><option value="6">6 m/s · conservador</option><option value="9" selected>9 m/s · prueba DJI 45 min</option><option value="13.5">13.5 m/s · prueba DJI 32 km</option><option value="18">18 m/s · extrapolado</option></select>
+          </label>
+          <label>Reserva %
+            <input id="reserve" type="number" min="10" max="40" value="25">
+          </label>
+        </div>
+        <div class="row">
+          <label>Viento km/h<input id="wind" type="number" min="0" max="70" value="15"></label>
+          <label>Rachas km/h<input id="gust" type="number" min="0" max="90" value="22"></label>
+        </div>
+        <div class="row">
+          <label>Viento DESDE °<input id="windDir" type="number" min="0" max="359" value="0"></label>
+          <label>RTH m AGL<input id="rthAlt" type="number" min="20" max="122" value="90"></label>
+        </div>
+        <div class="row">
+          <label>Margen consumo
+            <select id="safety"><option value="1">1.00× ideal DJI</option><option value="1.10">1.10×</option><option value="1.15" selected>1.15× recomendado</option><option value="1.25">1.25× muy conservador</option></select>
+          </label>
+          <label>Viento a altura
+            <select id="windLevel"><option value="10">10 m</option><option value="80" selected>80 m</option><option value="120">120 m</option></select>
+          </label>
+        </div>
+        <div class="row">
+          <label>Hora de vuelo<input id="flightTime" type="datetime-local"></label>
+          <label>Visibilidad km<input id="visibility" type="number" min="0" max="100" step="0.1" value="20"></label>
+        </div>
+        <div class="actions" style="margin-top:7px">
+          <button class="btn small" id="weatherBtn">☁ Cargar pronóstico real</button>
+          <button class="btn small" id="saveLocal">Guardar plan</button>
+          <button class="btn small" id="restoreLocal">Restaurar</button>
+        </div>
+        <div id="weatherInfo" class="hint" style="margin-top:6px">Clima manual. Open‑Meteo puede cargar viento a 10/80/120 m para la hora del vuelo.</div>
+        <div class="actions" style="margin-top:7px">
+          <button class="btn small preset" data-w="0" data-g="0" data-d="0">Calma</button>
+          <button class="btn small preset" data-w="15" data-g="22" data-d="0">Norte 15</button>
+          <button class="btn small preset" data-w="25" data-g="35" data-d="0">Norte 25</button>
+          <button class="btn small preset" data-w="20" data-g="28" data-d="180">Surada 20</button>
+        </div>
+      </section>
+
+      <section class="sec">
+        <h3>3 · Señal O4 estimada</h3>
+        <label>Entorno
+          <select id="rf"><option value="suburban" selected>Suburbano · 4–10 km</option><option value="coast">Costa / abierto · 10–20 km</option><option value="urban">Urbano · 1.5–4 km</option><option value="trees">Árboles bloqueando · 0.5–3 km</option><option value="buildings">Edificios bloqueando · 0–0.5 km</option></select>
+        </label>
+        <div class="hint">La interferencia real sólo la podrás confirmar con DJI Fly. Aquí usamos los rangos publicados por DJI como referencia.</div>
+      </section>
+
+      <section class="sec">
+        <h3>4 · México</h3>
+        <label class="check"><input id="nom" type="checkbox" checked> Avisar cuando el dron pase de 457 m del piloto.</label>
+        <label class="check"><input id="ring" type="checkbox" checked> Mostrar anillos oficiales VER: 9.2 km / 18.5 km.</label>
+      <div class="hint" style="margin-top:6px">Air 3S: 724 g → RPAS Micro bajo NOM‑107. La app calcula la distancia del Home al centro oficial del aeropuerto VER.</div>
+      </section>
+
+      <section class="sec">
+        <h3>Guardar / exportar</h3>
+        <div class="actions"><button class="btn small" id="export">Exportar JSON</button><button class="btn small" id="kml">Exportar KML</button></div>
+      </section>
+    </div>
+
+    <div class="mapbox">
+      <div id="map" class="map">
+        <div id="tiles" class="tiles"></div>
+        <svg id="overlay" class="overlay"></svg>
+        <div class="layerctrl"><button id="streetBtn">Calles</button><button id="satBtn" class="active">Satélite</button></div>
+        <div class="mapctrl"><button id="zin">＋</button><button id="zout">−</button><button id="recenter">⌂</button></div>
+        <div id="mapError" class="error">El visor está bloqueando las imágenes del mapa. Abre este archivo en Safari para cargar el mapa real.</div>
+        <div class="interactbar">
+          <button id="navMode" class="active">✋ Navegar</button>
+          <button id="editMode">📍 Colocar puntos</button>
+        </div>
+        <div class="mapmsg">Pellizca con 2 dedos para zoom · arrastra para mover · cambia a “Colocar puntos” cuando quieras añadir Home/waypoints.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="k">Distancia</div><div class="v" id="distV">—</div><div class="s">Ruta total.</div></div>
+    <div class="stat"><div class="k">Tiempo</div><div class="v" id="timeV">—</div><div class="s">Con viento aplicado.</div></div>
+    <div class="stat"><div class="k">Batería final</div><div class="v" id="batV">—</div><div class="s">Plan / ideal DJI.</div></div>
+    <div class="stat"><div class="k">Máx. Home</div><div class="v" id="homeV">—</div><div class="s">Distancia máxima al control.</div></div>
+    <div class="stat"><div class="k">RTH estimado</div><div class="v" id="rthV">—</div><div class="s">Con tu reserva.</div></div>
+    <div class="stat"><div class="k">Riesgo O4</div><div class="v" id="sigV">—</div><div class="s">Por distancia + entorno elegido.</div></div>
+    <div class="stat"><div class="k">Margen batería</div><div class="v" id="extraV">—</div><div class="s">Sobre tu reserva configurada.</div></div>
+    <div class="stat"><div class="k">Viento</div><div class="v" id="windV">—</div><div class="s">Air 3S: 12 m/s máx. publicado.</div></div>
+  </div>
+
+  <div class="status"><span id="tech" class="warn">Técnico: esperando ruta</span><span id="legal" class="warn">NOM: esperando ruta</span></div>
+
+  <div class="bottom">
+    <div class="panel">
+      <h3 style="margin-top:0">Waypoints</h3>
+      <div class="table"><table><thead><tr><th>WP</th><th>Alt. m</th><th>Dist. acum.</th><th>Batería</th><th>RTH necesita</th><th>O4</th><th></th></tr></thead><tbody id="tbody"><tr><td colspan="7" class="mini">Añade Home y waypoints.</td></tr></tbody></table></div>
+    </div>
+    <div class="panel">
+      <h3 style="margin-top:0">Qué está viendo el planner</h3>
+      <div id="explain" class="note">Marca tu punto de despegue para empezar.</div>
+      <div class="footer">Datos base DJI Air 3S: 724 g, 45 min a 32.4 km/h, 32 km a 48.6 km/h, hover 41 min, viento máx. 12 m/s y O4 según entorno. El RTH real del dron usa telemetría que esta app no puede conocer.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+const $=id=>document.getElementById(id);
+const state={mode:"home",interaction:"nav",home:null,wps:[],landing:null,center:{lat:19.09,lng:-96.11},zoom:14,layer:"sat",drag:false,start:null,moved:false,pointers:new Map(),pinch:null,suppressTapUntil:0};
+const map=$("map"),tiles=$("tiles"),svg=$("overlay");
+const rf={coast:{low:10,max:20},suburban:{low:4,max:10},urban:{low:1.5,max:4},trees:{low:.5,max:3},buildings:{low:.15,max:.5}};
+const VER={lat:19.1432333333,lng:-96.1891305556}; // NOM-107 Appendix I.1
+const AIR3S={weightG:724,maxFlightMin:45,maxHoverMin:41,maxDistanceKm:32,maxWindMs:12,maxSpeedMs:21,testTimeSpeedMs:9,testDistanceSpeedMs:13.5};
+function rad(x){return x*Math.PI/180} function deg(x){return x*180/Math.PI}
+function hav(a,b){const R=6371000,p1=rad(a.lat),p2=rad(b.lat),dp=rad(b.lat-a.lat),dl=rad(b.lng-a.lng),h=Math.sin(dp/2)**2+Math.cos(p1)*Math.cos(p2)*Math.sin(dl/2)**2;return 2*R*Math.asin(Math.min(1,Math.sqrt(h)))}
+function bearing(a,b){const p1=rad(a.lat),p2=rad(b.lat),dl=rad(b.lng-a.lng),y=Math.sin(dl)*Math.cos(p2),x=Math.cos(p1)*Math.sin(p2)-Math.sin(p1)*Math.cos(p2)*Math.cos(dl);return(deg(Math.atan2(y,x))+360)%360}
+function world(lat,lng,z){const n=256*Math.pow(2,z),x=(lng+180)/360*n,s=Math.sin(rad(lat)),y=(.5-Math.log((1+s)/(1-s))/(4*Math.PI))*n;return{x,y}}
+function ll(x,y,z){const n=256*Math.pow(2,z),lng=x/n*360-180,yy=.5-y/n,lat=90-360*Math.atan(Math.exp(-yy*2*Math.PI))/Math.PI;return{lat,lng}}
+function screen(p){const c=world(state.center.lat,state.center.lng,state.zoom),w=world(p.lat,p.lng,state.zoom);return{x:map.clientWidth/2+(w.x-c.x),y:map.clientHeight/2+(w.y-c.y)}}
+function geoFromScreen(x,y){const c=world(state.center.lat,state.center.lng,state.zoom);return ll(c.x+(x-map.clientWidth/2),c.y+(y-map.clientHeight/2),state.zoom)}
+function renderTiles(){
+  tiles.innerHTML="";
+  const w=map.clientWidth,h=map.clientHeight,z=state.zoom,c=world(state.center.lat,state.center.lng,z),n=Math.pow(2,z);
+  const minX=Math.floor((c.x-w/2)/256)-1,maxX=Math.floor((c.x+w/2)/256)+1,minY=Math.floor((c.y-h/2)/256)-1,maxY=Math.floor((c.y+h/2)/256)+1;
+  let loaded=0,failed=0,total=0;
+  for(let ty=minY;ty<=maxY;ty++)for(let tx=minX;tx<=maxX;tx++){
+    if(ty<0||ty>=n)continue; total++; const wrap=((tx%n)+n)%n;
+    const im=document.createElement("img");im.className="tile";
+    im.style.left=(tx*256-(c.x-w/2))+"px";im.style.top=(ty*256-(c.y-h/2))+"px";
+    im.alt="";
+    im.src=state.layer==="sat"?`https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${ty}/${wrap}`:`https://tile.openstreetmap.org/${z}/${wrap}/${ty}.png`;
+    im.onload=()=>{loaded++;if(loaded>2)$("mapError").style.display="none"};
+    im.onerror=()=>{failed++;if(failed>=Math.max(2,total-1))$("mapError").style.display="block"};
+    tiles.appendChild(im);
+  }
+  renderOverlay();
+}
+function el(name,attrs){const e=document.createElementNS("http://www.w3.org/2000/svg",name);Object.entries(attrs||{}).forEach(([k,v])=>e.setAttribute(k,v));return e}
+function renderOverlay(){
+  svg.setAttribute("viewBox",`0 0 ${map.clientWidth} ${map.clientHeight}`);svg.innerHTML="";
+  const pts=[]; if(state.home)pts.push(state.home); pts.push(...state.wps); if($("returnHome").checked&&state.home&&state.wps.length)pts.push(state.home); else if(state.landing)pts.push(state.landing);
+  if(state.home&&$("nom").checked){const s=screen(state.home),edge=screen({lat:state.home.lat+457/111320,lng:state.home.lng});const r=Math.abs(edge.y-s.y);svg.appendChild(el("circle",{cx:s.x,cy:s.y,r,fill:"none",stroke:"#5bbcff","stroke-width":"1.5","stroke-dasharray":"6 6",opacity:".75"}))}
+  if($("ring").checked){
+    const vc=screen(VER);
+    const e92=screen({lat:VER.lat+9200/111320,lng:VER.lng});
+    const e185=screen({lat:VER.lat+18500/111320,lng:VER.lng});
+    svg.appendChild(el("circle",{cx:vc.x,cy:vc.y,r:Math.abs(e185.y-vc.y),fill:"none",stroke:"#ffd34e","stroke-width":"2","stroke-dasharray":"8 7",opacity:".75"}));
+    svg.appendChild(el("circle",{cx:vc.x,cy:vc.y,r:Math.abs(e92.y-vc.y),fill:"none",stroke:"#ff6268","stroke-width":"2","stroke-dasharray":"8 7",opacity:".8"}));
+  }
+  for(let i=0;i<pts.length-1;i++){const a=screen(pts[i]),b=screen(pts[i+1]),risk=segmentRisk(pts[i],pts[i+1]),col={low:"#35d77e",medium:"#ffd34e",high:"#ff963a",critical:"#ff6268"}[risk];svg.appendChild(el("line",{x1:a.x,y1:a.y,x2:b.x,y2:b.y,stroke:col,"stroke-width":"5","stroke-linecap":"round"}))}
+  if(state.home)drawMarker(state.home,"H","#1687d9",18);
+  state.wps.forEach((p,i)=>drawMarker(p,String(i+1),"#142636",15));
+  if(state.landing&&!$("returnHome").checked)drawMarker(state.landing,"L","#7658df",16);
+  const sim=simulate(); if(sim&&sim.rth){const s=screen(sim.rth.p),h=screen(state.home);svg.appendChild(el("line",{x1:s.x,y1:s.y,x2:h.x,y2:h.y,stroke:"#ff6268","stroke-width":"3","stroke-dasharray":"8 7"}));drawMarker(sim.rth.p,"R","#e64f59",18)}
+}
+function drawMarker(p,label,color,r){const s=screen(p),g=el("g");g.appendChild(el("circle",{cx:s.x,cy:s.y,r,fill:color,stroke:"white","stroke-width":"3"}));const t=el("text",{x:s.x,y:s.y+5,"text-anchor":"middle",fill:"white","font-size":"13","font-weight":"800"});t.textContent=label;g.appendChild(t);svg.appendChild(g)}
+function setMode(m){state.mode=m;["homeMode","wpMode","landMode"].forEach(id=>$(id).classList.remove("active"));({home:"homeMode",wp:"wpMode",land:"landMode"}[m]&&$({home:"homeMode",wp:"wpMode",land:"landMode"}[m]).classList.add("active"));$("modeText").textContent=m==="home"?"Toca el mapa donde despegas.":m==="wp"?"Toca cada punto de la ruta en orden.":"Toca el punto de aterrizaje."}
+
+function setInteraction(mode){
+  state.interaction=mode;
+  $("navMode").classList.toggle("active",mode==="nav");
+  $("editMode").classList.toggle("active",mode==="edit");
+  $("modeText").textContent = mode==="nav"
+    ? "Modo navegación: mueve o pellizca el mapa sin crear puntos."
+    : (state.mode==="home" ? "Modo edición: toca el mapa para colocar Home."
+       : state.mode==="wp" ? "Modo edición: toca el mapa para añadir waypoints."
+       : "Modo edición: toca el mapa para marcar Landing.");
+}
+function zoomAroundScreen(newZoom, sx, sy){
+  newZoom=Math.max(3,Math.min(19,newZoom));
+  if(newZoom===state.zoom)return;
+  const before=geoFromScreen(sx,sy);
+  state.zoom=newZoom;
+  const after=geoFromScreen(sx,sy);
+  state.center.lat += before.lat-after.lat;
+  state.center.lng += before.lng-after.lng;
+  renderTiles();
+}
+function pointerDistance(a,b){
+  return Math.hypot(a.x-b.x,a.y-b.y);
+}
+function pointerMid(a,b){
+  return {x:(a.x+b.x)/2,y:(a.y+b.y)/2};
+}
+
+function addPoint(g){if(state.mode==="home"){state.home={...g,alt:0};setMode("wp")}else if(state.mode==="wp"){if(!state.home){setMode("home");return}state.wps.push({...g,alt:80})}else {state.landing={...g,alt:0};setInteraction("nav")}recalc()}
+function ground(track,air){const ws=(+$("wind").value||0)/3.6,from=(+$("windDir").value||0)%360,to=(from+180)%360,d=rad(((to-track+540)%360)-180),par=ws*Math.cos(d),cross=ws*Math.sin(d);if(Math.abs(cross)>=air)return{ok:false,g:.1};return{ok:true,g:Math.max(.1,par+Math.sqrt(Math.max(0,air*air-cross*cross)))}}
+function idealDrain(v){
+  const hover=100/AIR3S.maxHoverMin;        // official hover anchor
+  const at9=100/AIR3S.maxFlightMin;         // official 45 min @ 9 m/s
+  const maxDistMinutes=(AIR3S.maxDistanceKm/(AIR3S.testDistanceSpeedMs*3.6))*60;
+  const at135=100/maxDistMinutes;            // official 32 km @ 13.5 m/s
+  if(v<=9) return at9+(hover-at9)*(9-v)/9;
+  if(v<=13.5) return at9+(at135-at9)*(v-9)/4.5;
+  // Above 13.5 m/s DJI publishes speed but no endurance anchor; extrapolate and flag in UI.
+  return at135+(at135-at9)*(v-13.5)/4.5;
+}
+function drain(v){return idealDrain(v)*(+$("safety").value||1.15)}
+function sigRisk(p){if(!state.home)return"low";const d=hav(state.home,p)/1000,pf=rf[$("rf").value];return d>pf.max?"critical":d>pf.low?"high":d>pf.low*.65?"medium":"low"}
+function rank(x){return{low:0,medium:1,high:2,critical:3}[x]}
+function segmentRisk(a,b){let r="low";[a,b,{lat:(a.lat+b.lat)/2,lng:(a.lng+b.lng)/2}].forEach(p=>{const x=sigRisk(p);if(rank(x)>rank(r))r=x});const g=ground(bearing(a,b),+$("speed").value||13.5);if(!g.ok)r="critical";else if(g.g<3&&rank(r)<2)r="high";return r}
+function estimateRTH(p,air,reserve){if(!state.home)return 100;const d=hav(p,state.home),g=ground(bearing(p,state.home),air);if(!g.ok)return 100;const mins=d/g.g/60+1.4;return mins*drain(air)+reserve+3}
+function simulate(){
+  if(!state.home||!state.wps.length)return null;const pts=[state.home,...state.wps];if($("returnHome").checked)pts.push(state.home);else if(state.landing)pts.push(state.landing);else return null;
+  const air=+$("speed").value||9,res=+$("reserve").value||25;let batt=97,idealBatt=97,mins=1.0,dist=0,maxH=0,worst="low",rth=null,metrics=[],cum=0;
+  for(let i=0;i<pts.length-1;i++){const a=pts[i],b=pts[i+1],d=hav(a,b),g=ground(bearing(a,b),air),segM=d/Math.max(.1,g.g)/60,segB=segM*drain(air),segIdeal=segM*idealDrain(air);const steps=Math.max(1,Math.ceil(d/100));
+    for(let s=1;s<=steps;s++){const t=s/steps,p={lat:a.lat+(b.lat-a.lat)*t,lng:a.lng+(b.lng-a.lng)*t};cum+=d/steps;mins+=segM/steps;batt-=segB/steps;idealBatt-=segIdeal/steps;maxH=Math.max(maxH,hav(state.home,p));const sr=sigRisk(p);if(rank(sr)>rank(worst))worst=sr;const need=estimateRTH(p,air,res);if(!rth&&batt<=need)rth={p,dist:cum,batt,need}}
+    dist+=d;if(i<state.wps.length){metrics.push({dist,batt,need:estimateRTH(b,air,res),sig:sigRisk(b)})}
+  }
+  batt-=1.5;idealBatt-=1;mins+=.4;return{dist,mins,batt,idealBatt,maxH,worst,rth,metrics,air,res};
+}
+function recalc(){
+  renderOverlay();const s=simulate();$("windV").textContent=`${+$("wind").value||0}/${+$("gust").value||0} km/h`;renderTable(s);
+  if(!s){["distV","timeV","batV","homeV","rthV","sigV","extraV"].forEach(id=>$(id).textContent="—");$("tech").className="warn";$("tech").textContent="Técnico: esperando ruta";$("legal").className="warn";$("legal").textContent="NOM: esperando ruta";$("explain").textContent="Marca Home y al menos un waypoint.";return}
+  $("distV").textContent=(s.dist/1000).toFixed(2)+" km";$("timeV").textContent=s.mins.toFixed(1)+" min";$("batV").textContent=Math.max(0,s.batt).toFixed(0)+"% / "+Math.max(0,s.idealBatt).toFixed(0)+"%";$("homeV").textContent=(s.maxH/1000).toFixed(2)+" km";$("rthV").textContent=s.rth?(s.rth.dist/1000).toFixed(1)+" km":"No antes del fin";$("sigV").textContent={low:"Bajo",medium:"Medio",high:"Alto",critical:"Crítico"}[s.worst];
+  $("extraV").textContent=(s.batt-s.res).toFixed(0)+"%";
+  let tc="good",tt="Técnico: margen cómodo";if(s.batt<0||s.worst==="critical"){tc="crit";tt="Técnico: no viable"}else if(s.rth||s.batt<s.res+5||s.worst==="high"){tc="bad";tt="Técnico: alto riesgo"}else if(s.batt<s.res+15||s.worst==="medium"){tc="warn";tt="Técnico: margen limitado"}$("tech").className=tc;$("tech").textContent=tt;
+  const maxAlt=Math.max(...state.wps.map(w=>w.alt),+$("rthAlt").value||0);
+  const dVer=hav(state.home,VER)/1000,lim=(dVer>=9.2&&dVer<=18.5)?100:122;
+  const badD=$("nom").checked&&s.maxH>457,badA=maxAlt>lim,insideVer=dVer<9.2;
+  const windMs=(+$("wind").value||0)/3.6,vis=+$("visibility").value||0;
+  $("legal").className=(badD||badA||insideVer||vis<1.5)?"crit":"good";
+  $("legal").textContent=(badD||badA||insideVer||vis<1.5)?`NOM: alerta${insideVer?" · Home <9.2 km VER":""}${badD?" · >457 m":""}${badA?" · >"+lim+" m AGL":""}${vis<1.5?" · vis <1.5 km":""}`:`NOM: sin alerta básica · VER ${dVer.toFixed(1)} km`;
+  if(windMs>AIR3S.maxWindMs){$("tech").className="crit";$("tech").textContent="Técnico: viento supera 12 m/s publicado por DJI"}
+  $("explain").innerHTML=`Ruta <b>${(s.dist/1000).toFixed(2)} km</b>, máximo <b>${(s.maxH/1000).toFixed(2)} km</b> del Home. Batería de planificación <b>${Math.max(0,s.batt).toFixed(0)}%</b>; escenario ideal DJI <b>${Math.max(0,s.idealBatt).toFixed(0)}%</b>. ${s.air>13.5?"La velocidad elegida supera el punto de ensayo de distancia de DJI, por lo que el consumo se extrapola. ":""}${s.rth?`El marcador R aparece cerca de ${(s.rth.dist/1000).toFixed(1)} km acumulados.`:"No aparece RTH técnico anticipado con la reserva actual."}`;
+}
+function renderTable(s){const b=$("tbody");b.innerHTML="";if(!state.wps.length){b.innerHTML='<tr><td colspan="7" class="mini">Añade waypoints.</td></tr>';return}state.wps.forEach((w,i)=>{const m=s&&s.metrics[i],tr=document.createElement("tr");tr.innerHTML=`<td>WP${i+1}</td><td><input data-a="${i}" type="number" min="10" max="122" value="${w.alt}" style="width:70px"></td><td>${m?(m.dist/1000).toFixed(2)+" km":"—"}</td><td>${m?m.batt.toFixed(0)+"%":"—"}</td><td>${m?m.need.toFixed(0)+"%":"—"}</td><td>${m?{low:"Bajo",medium:"Medio",high:"Alto",critical:"Crítico"}[m.sig]:"—"}</td><td><button class="btn small" data-x="${i}">×</button></td>`;b.appendChild(tr)});b.querySelectorAll("[data-a]").forEach(x=>x.onchange=()=>{state.wps[+x.dataset.a].alt=Math.min(122,Math.max(10,+x.value||80));recalc()});b.querySelectorAll("[data-x]").forEach(x=>x.onclick=()=>{state.wps.splice(+x.dataset.x,1);recalc()})}
+
+
+function localDateTimeValue(d){
+  const p=n=>String(n).padStart(2,"0");
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+async function loadWeather(){
+  if(!state.home){alert("Primero coloca Home.");return}
+  const pts=[state.home,...state.wps],center=pts.reduce((a,p)=>({lat:a.lat+p.lat/pts.length,lng:a.lng+p.lng/pts.length}),{lat:0,lng:0});
+  const lv=$("windLevel").value;
+  const url=`https://api.open-meteo.com/v1/forecast?latitude=${center.lat}&longitude=${center.lng}&hourly=wind_speed_10m,wind_direction_10m,wind_speed_80m,wind_direction_80m,wind_speed_120m,wind_direction_120m,wind_gusts_10m,visibility,precipitation&timezone=auto&forecast_days=7`;
+  $("weatherInfo").textContent="Cargando Open‑Meteo…";
+  try{
+    const j=await fetch(url).then(r=>r.json()); if(!j.hourly) throw new Error("Sin hourly");
+    const target=$("flightTime").value?new Date($("flightTime").value):new Date();
+    let bi=0,bd=Infinity;
+    j.hourly.time.forEach((t,i)=>{const dd=Math.abs(new Date(t).getTime()-target.getTime());if(dd<bd){bd=dd;bi=i}});
+    const ws=j.hourly[`wind_speed_${lv}m`][bi],wd=j.hourly[`wind_direction_${lv}m`][bi],gu=j.hourly.wind_gusts_10m[bi],vi=j.hourly.visibility[bi]/1000,pr=j.hourly.precipitation[bi];
+    $("wind").value=ws.toFixed(1);$("windDir").value=Math.round(wd);$("gust").value=gu.toFixed(1);$("visibility").value=vi.toFixed(1);
+    $("weatherInfo").textContent=`Open‑Meteo ${j.hourly.time[bi]} · viento ${lv} m: ${ws.toFixed(1)} km/h desde ${Math.round(wd)}° · racha 10 m ${gu.toFixed(1)} km/h · vis ${vi.toFixed(1)} km · precip. ${pr} mm.`;
+    recalc();
+  }catch(e){$("weatherInfo").textContent="No se pudo cargar el pronóstico. Mantén valores manuales y vuelve a intentar."}
+}
+function planData(){return{version:4,home:state.home,wps:state.wps,landing:state.landing,settings:{returnHome:$("returnHome").checked,speed:+$("speed").value,reserve:+$("reserve").value,wind:+$("wind").value,gust:+$("gust").value,windDir:+$("windDir").value,rthAlt:+$("rthAlt").value,rf:$("rf").value,safety:+$("safety").value,windLevel:+$("windLevel").value,visibility:+$("visibility").value,flightTime:$("flightTime").value}}}
+function restorePlan(d){
+  if(!d)return; state.home=d.home||null;state.wps=d.wps||[];state.landing=d.landing||null;const q=d.settings||{};
+  Object.keys(q).forEach(k=>{if($(k)){if($(k).type==="checkbox")$(k).checked=!!q[k];else $(k).value=q[k]}});
+  recalc();
+}
+
+map.addEventListener("pointerdown",e=>{
+  if(e.target.closest && (e.target.closest(".mapctrl")||e.target.closest(".layerctrl")||e.target.closest(".interactbar"))) return;
+  state.pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  try{map.setPointerCapture(e.pointerId)}catch(_){}
+  if(state.pointers.size===1){
+    state.drag=true;state.moved=false;
+    state.start={x:e.clientX,y:e.clientY,c:{...state.center},t:performance.now()};
+  } else if(state.pointers.size===2){
+    const arr=[...state.pointers.values()],mid=pointerMid(arr[0],arr[1]);
+    state.pinch={
+      dist:pointerDistance(arr[0],arr[1]),
+      zoom:state.zoom,
+      center:{...state.center},
+      midX:mid.x-map.getBoundingClientRect().left,
+      midY:mid.y-map.getBoundingClientRect().top
+    };
+    state.drag=false;state.moved=true;
+    state.suppressTapUntil=performance.now()+500;
+  }
+});
+map.addEventListener("pointermove",e=>{
+  if(!state.pointers.has(e.pointerId))return;
+  state.pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(state.pointers.size>=2){
+    const arr=[...state.pointers.values()],d=pointerDistance(arr[0],arr[1]);
+    if(!state.pinch){
+      const mid=pointerMid(arr[0],arr[1]),r=map.getBoundingClientRect();
+      state.pinch={dist:d,zoom:state.zoom,center:{...state.center},midX:mid.x-r.left,midY:mid.y-r.top};
+    }
+    const ratio=Math.max(.35,Math.min(3,d/Math.max(1,state.pinch.dist)));
+    const desired=state.pinch.zoom + Math.log2(ratio);
+    const z=Math.round(desired);
+    if(z!==state.zoom){
+      zoomAroundScreen(z,state.pinch.midX,state.pinch.midY);
+      state.pinch.zoom=state.zoom;
+      state.pinch.dist=d;
+    }
+    state.moved=true;state.suppressTapUntil=performance.now()+450;
+    return;
+  }
+  if(!state.drag||!state.start)return;
+  const dx=e.clientX-state.start.x,dy=e.clientY-state.start.y;
+  if(Math.hypot(dx,dy)>5)state.moved=true;
+  const cw=world(state.start.c.lat,state.start.c.lng,state.zoom),n=ll(cw.x-dx,cw.y-dy,state.zoom);
+  state.center=n;renderTiles();
+});
+function finishPointer(e){
+  const wasSingle=state.pointers.size===1 && state.pointers.has(e.pointerId);
+  state.pointers.delete(e.pointerId);
+  if(state.pointers.size<2)state.pinch=null;
+  if(state.pointers.size===0){
+    const shouldTap=wasSingle && !state.moved && state.interaction==="edit" && performance.now()>state.suppressTapUntil;
+    state.drag=false;
+    if(shouldTap){
+      const r=map.getBoundingClientRect();
+      addPoint(geoFromScreen(e.clientX-r.left,e.clientY-r.top));
+    }
+    state.start=null;
+  } else if(state.pointers.size===1){
+    const p=[...state.pointers.values()][0];
+    state.drag=true;state.start={x:p.x,y:p.y,c:{...state.center},t:performance.now()};
+    state.moved=true;
+  }
+}
+map.addEventListener("pointerup",finishPointer);
+map.addEventListener("pointercancel",finishPointer);
+map.addEventListener("wheel",e=>{
+  e.preventDefault();
+  const r=map.getBoundingClientRect(),sx=e.clientX-r.left,sy=e.clientY-r.top;
+  zoomAroundScreen(state.zoom+(e.deltaY<0?1:-1),sx,sy);
+  state.suppressTapUntil=performance.now()+300;
+},{passive:false});
+
+$("zin").onclick=(e)=>{e.stopPropagation();zoomAroundScreen(state.zoom+1,map.clientWidth/2,map.clientHeight/2);state.suppressTapUntil=performance.now()+300};$("zout").onclick=(e)=>{e.stopPropagation();zoomAroundScreen(state.zoom-1,map.clientWidth/2,map.clientHeight/2);state.suppressTapUntil=performance.now()+300};$("recenter").onclick=(e)=>{e.stopPropagation();state.center=state.home?{lat:state.home.lat,lng:state.home.lng}:{lat:19.09,lng:-96.11};state.zoom=14;renderTiles();state.suppressTapUntil=performance.now()+300};
+$("streetBtn").onclick=(e)=>{e.stopPropagation();state.layer="street";$("streetBtn").classList.add("active");$("satBtn").classList.remove("active");renderTiles()};$("satBtn").onclick=(e)=>{e.stopPropagation();state.layer="sat";$("satBtn").classList.add("active");$("streetBtn").classList.remove("active");renderTiles()};
+$("navMode").onclick=(e)=>{e.stopPropagation();setInteraction("nav")};
+$("editMode").onclick=(e)=>{e.stopPropagation();setInteraction("edit")};
+$("homeMode").onclick=()=>{setMode("home");setInteraction("edit")};$("wpMode").onclick=()=>{setMode("wp");setInteraction("edit")};$("landMode").onclick=()=>{setMode("land");setInteraction("edit")};$("undo").onclick=()=>{state.wps.pop();recalc()};$("clear").onclick=()=>{state.home=null;state.wps=[];state.landing=null;setMode("home");recalc()};
+["returnHome","speed","reserve","wind","gust","windDir","rthAlt","rf","nom","ring","safety","visibility"].forEach(id=>$(id).addEventListener("change",recalc));document.querySelectorAll(".preset").forEach(b=>b.onclick=()=>{$("wind").value=b.dataset.w;$("gust").value=b.dataset.g;$("windDir").value=b.dataset.d;recalc()});$("weatherBtn").onclick=loadWeather;$("saveLocal").onclick=()=>{localStorage.setItem("air3s-plan-v4",JSON.stringify(planData()));$("weatherInfo").textContent="Plan guardado en este dispositivo."};$("restoreLocal").onclick=()=>{const x=localStorage.getItem("air3s-plan-v4");if(x)restorePlan(JSON.parse(x));else alert("No hay plan guardado.");};
+function dl(name,text,type){const a=document.createElement("a"),blob=new Blob([text],{type});a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),500)}
+$("export").onclick=()=>dl("air3s-plan.json",JSON.stringify(planData(),null,2),"application/json");
+$("kml").onclick=()=>{if(!state.home||!state.wps.length)return;const p=[state.home,...state.wps,...($("returnHome").checked?[state.home]:state.landing?[state.landing]:[])],coords=p.map(x=>`${x.lng},${x.lat},${x.alt||80}`).join(" ");dl("air3s-plan.kml",`<?xml version="1.0"?><kml xmlns="http://www.opengis.net/kml/2.2"><Placemark><LineString><altitudeMode>relativeToGround</altitudeMode><coordinates>${coords}</coordinates></LineString></Placemark></kml>`,"application/vnd.google-earth.kml+xml")};
+window.addEventListener("resize",renderTiles);$("flightTime").value=localDateTimeValue(new Date(Date.now()+60*60*1000));setMode("home");setInteraction("nav");renderTiles();recalc();if("serviceWorker" in navigator&&location.protocol==="https:")window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(()=>{}));
+})();
+</script>
+</body></html>
